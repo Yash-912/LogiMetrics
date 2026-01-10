@@ -85,8 +85,25 @@ const AppContent = () => {
   // Don't show Navbar if we are on the dashboard (or authenticated and trying to view dashboard)
   const showNavbar = !isAuthenticated || location.pathname !== '/dashboard';
 
+  const [backendStatus, setBackendStatus] = useState('Checking...');
+
+  useEffect(() => {
+    fetch('/api/health') // Changed to root health check as discussed
+      .then(res => res.json())
+      .then(data => setBackendStatus(data.success ? 'Connected' : 'Error'))
+      .catch(err => {
+        console.error('Backend check failed:', err);
+        setBackendStatus('Offline');
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#020617] text-white">
+      {/* Backend Status Indicator */}
+      <div className="fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-mono">
+        Backend: <span className={backendStatus === 'Connected' ? 'text-green-400' : 'text-red-400'}>{backendStatus}</span>
+      </div>
+
       {showNavbar && <Navbar onLogin={handleLogin} />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
