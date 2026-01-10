@@ -15,7 +15,9 @@
     "migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "seed": "sequelize-cli db:seed:all",
     "seed:undo": "sequelize-cli db:seed:undo:all",
-    "db:setup": "npm run migrate && npm run seed"
+    "seed:mongodb": "node scripts/seed-mongodb.js",
+    "test:mongodb": "node scripts/test-and-seed-mongodb.js",
+    "db:setup": "npm run migrate && npm run seed && npm run test:mongodb"
   },
   "keywords": [
     "logistics",
