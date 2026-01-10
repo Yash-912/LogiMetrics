@@ -11,7 +11,8 @@ import LandingPage from '@/pages/LandingPage';
 import MoversPackers from '@/pages/MoversPackers';
 import TruckPartners from '@/pages/TruckPartners';
 import Enterprise from '@/pages/Enterprise';
-import AdminDashboard from '@/pages/AdminDashboard'; // New Import
+import BookingPage from '@/pages/BookingPage'; // New Import
+import AdminDashboard from '@/pages/AdminDashboard';
 
 const AuthContext = createContext(null);
 
@@ -93,6 +94,7 @@ const AppContent = () => {
         <Route path="/movers-packers" element={<MoversPackers />} />
         <Route path="/truck-partners" element={<TruckPartners />} />
         <Route path="/enterprise" element={<Enterprise />} />
+        <Route path="/book" element={<BookingPage />} />
 
         <Route
           path="/dashboard"

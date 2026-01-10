@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Globe } from '@/components/ui/globe';
@@ -107,9 +108,11 @@ const LandingPage = () => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row justify-center gap-6">
-                        <Button variant="primary" size="lg" className="shadow-lg shadow-blue-500/20 text-lg px-8 py-6 rounded-full">
-                            Start Mapping Routes <ArrowRight className="w-5 h-5 ml-2" />
-                        </Button>
+                        <Link to="/book">
+                            <Button variant="primary" size="lg" className="shadow-lg shadow-blue-500/20 text-lg px-8 py-6 rounded-full w-full sm:w-auto">
+                                Book Now <ArrowRight className="w-5 h-5 ml-2" />
+                            </Button>
+                        </Link>
                         <Button variant="outline" size="lg" className="backdrop-blur-sm bg-slate-900/30 text-lg px-8 py-6 rounded-full border-cyan-500/30 text-cyan-300">
                             Track Live Shipments
                         </Button>
