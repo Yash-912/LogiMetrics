@@ -7,15 +7,24 @@ const driverSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    firstname: {
+      type: String,
+      required: true,
+    },
+    lastname: {
+      type: String,
+      required: true,
+    },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: true,
+      // required: true, // Made optional for initial registration
     },
     licenseNumber: {
       type: String,
       unique: true,
-      required: true,
+      sparse: true, // Allow null/undefined to be unique
+      // required: true, // Made optional
     },
     licenseExpiry: Date,
     licenseType: {

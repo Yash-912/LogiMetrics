@@ -1,9 +1,9 @@
 const { validationResult } = require("express-validator");
-const { User, AuditLog } = require("../models/mongodb");
+const { User, Company, AuditLog, Driver } = require("../models/mongodb");
 const {
   generateAccessToken,
   generateRefreshToken,
-  verifyToken,
+  verifyRefreshToken,
 } = require("../utils/jwt.util");
 const { hashPassword, comparePassword } = require("../utils/bcrypt.util");
 const { successResponse, errorResponse } = require("../utils/response.util");
@@ -12,7 +12,7 @@ const logger = require("../utils/logger.util");
 const crypto = require("crypto");
 
 /**
- * Register a new user
+ * Register a new user (with optional company creation)
  * @route POST /api/auth/register
  */
 const register = async (req, res, next) => {
@@ -22,14 +22,58 @@ const register = async (req, res, next) => {
       return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
-    const { email, password, firstName, lastName, phone, companyId, role } =
-      req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      companyId,
+      role,
+      // Company fields for new company creation
+      company
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       throw new AppError("User with this email already exists", 409);
     }
+
+    let finalCompanyId = companyId;
+
+    // If company object is provided, create new company
+    if (company && company.name) {
+      // Check if company with same email exists
+      const existingCompany = await Company.findOne({ email: company.email || email });
+      if (existingCompany) {
+        // Use existing company
+        finalCompanyId = existingCompany._id;
+      } else {
+        // Create new company
+        const newCompany = await Company.create({
+          name: company.name,
+          email: company.email || email,
+          phone: company.phone || phone,
+          registrationNumber: company.registrationNumber || company.gstNumber,
+          taxId: company.gstNumber,
+          address: company.address?.street || company.address,
+          city: company.address?.city || company.city,
+          state: company.address?.state || company.state,
+          country: company.country || "India",
+          status: "active",
+          currency: "INR",
+          timezone: "Asia/Kolkata",
+        });
+        finalCompanyId = newCompany._id;
+
+        logger.info(`Company created: ${newCompany.name}`);
+      }
+    }
+
+    // Validate role against allowed values
+    const allowedRoles = ["super_admin", "manager", "dispatcher", "driver"];
+    const userRole = allowedRoles.includes(role) ? role : "manager";
 
     // Generate email verification token
     const emailVerificationToken = crypto.randomBytes(32).toString("hex");
@@ -42,22 +86,44 @@ const register = async (req, res, next) => {
       firstName,
       lastName,
       phone,
-      companyId,
-      role: role || "customer",
+      companyId: finalCompanyId,
+      role: userRole,
       emailVerificationToken,
       emailVerificationExpires,
       status: "active",
     });
 
+    // Create Driver profile if role is driver
+    if (userRole === "driver") {
+      await Driver.create({
+        userId: user._id,
+        firstname: firstName,
+        lastname: lastName,
+        email: email,
+        phone: phone,
+        companyId: finalCompanyId,
+        status: "available",
+      });
+    }
+
+    // If this is a new company, update the company with owner
+    if (company && company.name && finalCompanyId) {
+      await Company.findByIdAndUpdate(finalCompanyId, { ownerId: user._id });
+    }
+
     // Log audit event
     await AuditLog.create({
       userId: user._id,
-      action: "USER_REGISTERED",
-      resource: "User",
+      userEmail: user.email,
+      userRole: user.role,
+      companyId: finalCompanyId,
+      action: "register",
+      resource: "user",
       resourceId: user._id,
-      details: { email: user.email },
+      description: `New user registered: ${user.email}`,
       ipAddress: req.ip,
       userAgent: req.get("User-Agent"),
+      success: true,
     }).catch((err) => logger.debug("Audit log error:", err.message));
 
     // Generate tokens
@@ -77,7 +143,9 @@ const register = async (req, res, next) => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: user.phone,
           role: user.role,
+          companyId: user.companyId,
         },
         tokens: {
           accessToken,
@@ -132,12 +200,33 @@ const login = async (req, res, next) => {
       throw new AppError("Invalid credentials", 401);
     }
 
+    // Auto-detect & fix Driver role
+    const driverProfile = await Driver.findOne({
+      $or: [
+        { userId: user._id },
+        { email: { $regex: new RegExp(`^${user.email}$`, "i") } }
+      ]
+    });
+
+    if (driverProfile) {
+      if (!driverProfile.userId) {
+        driverProfile.userId = user._id;
+        await driverProfile.save();
+      }
+      if (user.role !== "driver") {
+        user.role = "driver";
+        await user.save();
+      }
+    }
+
     // Generate tokens
     const accessToken = generateAccessToken({
       userId: user._id,
       role: user.role,
     });
     const refreshToken = generateRefreshToken({ userId: user._id });
+
+
 
     // Update last login
     await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
@@ -215,9 +304,11 @@ const refreshAccessToken = async (req, res, next) => {
     }
 
     // Verify refresh token
-    const decoded = verifyToken(refreshToken, "refresh");
-    if (!decoded) {
-      throw new AppError("Invalid refresh token", 401);
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      throw new AppError("Invalid or expired refresh token", 401);
     }
 
     // Get user

@@ -22,8 +22,6 @@ async function initializePostgres() {
 
   try {
     const connection = await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 10000,
     });
 
