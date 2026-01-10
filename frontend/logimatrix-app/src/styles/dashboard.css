@@ -1,0 +1,228 @@
+/* Dashboard Styles */
+
+/* Widget animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+    }
+}
+
+/* Dashboard grid animations */
+.dashboard-widget {
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+.dashboard-widget:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.dashboard-widget:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.dashboard-widget:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.dashboard-widget:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+.dashboard-widget:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.dashboard-widget:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+.dashboard-widget:nth-child(7) {
+    animation-delay: 0.35s;
+}
+
+.dashboard-widget:nth-child(8) {
+    animation-delay: 0.4s;
+}
+
+/* Widget glassmorphism */
+.widget-glass {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.widget-glass:hover {
+    border-color: rgba(71, 85, 105, 0.8);
+    box-shadow: 0 4px 20px rgba(6, 182, 212, 0.1);
+}
+
+/* Chart container */
+.chart-container {
+    position: relative;
+}
+
+.chart-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 80%, rgba(2, 6, 23, 0.8) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Custom scrollbar for dashboard */
+.dashboard-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-track {
+    background: #0F172A;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* KPI Card hover effect */
+.kpi-card {
+    transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Slider custom styling */
+.dashboard-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #334155;
+    border-radius: 3px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.dashboard-slider:hover {
+    background: #475569;
+}
+
+.dashboard-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #06B6D4;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+    transition: all 0.2s ease;
+}
+
+.dashboard-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.7);
+}
+
+.dashboard-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #06B6D4;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+
+/* Toggle button group */
+.toggle-group {
+    display: inline-flex;
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.toggle-group button {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.toggle-group button.active {
+    background: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%);
+    color: white;
+}
+
+/* Alert badge */
+.alert-badge {
+    animation: pulse-glow 2s infinite;
+}
+
+/* Map overlay styles */
+.map-overlay {
+    pointer-events: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1280px) {
+    .dashboard-grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+
+    .dashboard-grid-3,
+    .dashboard-grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}

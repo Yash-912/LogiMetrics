@@ -26,7 +26,7 @@ const Typewriter = ({ text, delay = 0, className = "" }) => {
 };
 
 const CollaboratorLogo = ({ name }) => (
-    <div className="text-xl font-bold text-slate-500 hover:text-white transition-colors duration-300 font-sans tracking-tight cursor-default select-none grayscale hover:grayscale-0">
+    <div className="text-xl font-bold text-slate-400 hover:text-slate-700 transition-colors duration-300 font-sans tracking-tight cursor-default select-none">
         {name}
     </div>
 );
@@ -130,13 +130,21 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* 2. COLLABORATORS SECTION (Distinct) */}
-            <section className="relative z-30 bg-[#020617] border-y border-white/5 py-16 mt-20 flex justify-center">
+            {/* SEMICIRCLE DIVIDER - Transition from dark to ice blue */}
+            <div className="relative z-20 w-full h-32 overflow-hidden bg-[#020617]">
+                <div
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[200%] h-64 rounded-t-[50%] bg-[#F2F8FF]"
+                    style={{ boxShadow: '0 -30px 80px rgba(34, 211, 238, 0.15)' }}
+                />
+            </div>
 
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 px-12 py-8 rounded-3xl max-w-5xl shadow-[0_20px_60px_-15px_rgba(34,211,238,0.15)] mx-6">
+            {/* 2. COLLABORATORS SECTION - Ice Blue Background */}
+            <section className="relative z-30 bg-[#F2F8FF] py-16 flex justify-center">
 
-                    <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-8">Trusted by Industry Leaders</p>
-                    <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-60 hover:opacity-100 transition-all duration-500 grayscale hover:grayscale-0">
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200 px-12 py-8 rounded-3xl max-w-5xl shadow-lg mx-6">
+
+                    <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">Trusted by Industry Leaders</p>
+                    <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-70 hover:opacity-100 transition-all duration-500">
 
                         <CollaboratorLogo name="airbnb" />
                         <CollaboratorLogo name="stripe" />
@@ -148,14 +156,14 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* 3. FEATURES SECTION */}
-            <section className="py-32 px-4 sm:px-6 lg:px-8 bg-slate-950 relative z-20">
+            {/* 3. FEATURES SECTION - Ice Blue Background */}
+            <section className="py-32 px-4 sm:px-6 lg:px-8 bg-[#F2F8FF] relative z-20">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-20">
-                        <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
-                            Built for the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Future of Transport</span>
+                        <h2 className="text-3xl sm:text-5xl font-bold text-slate-800 mb-6">
+                            Built for the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-500">Future of Transport</span>
                         </h2>
-                        <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+                        <p className="text-slate-600 max-w-2xl mx-auto text-lg">
                             Experience seamless integration and real-time control over your entire supply chain.
                         </p>
                     </div>
@@ -164,13 +172,13 @@ const LandingPage = () => {
                         {features.map((feature, idx) => (
                             <Card
                                 key={idx}
-                                className={idx === 1 ? 'bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border-cyan-500/30' : 'bg-slate-900/40 border-slate-800'}
+                                className={idx === 1 ? 'bg-gradient-to-br from-blue-100 to-cyan-100 border-cyan-300' : 'bg-white border-slate-200 shadow-md'}
                             >
-                                <div className={'w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ' + (idx === 1 ? 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_-3px_rgba(34,211,238,0.2)]' : 'bg-slate-800 text-slate-300')}>
+                                <div className={'w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ' + (idx === 1 ? 'bg-cyan-500/20 text-cyan-600 shadow-[0_0_15px_-3px_rgba(34,211,238,0.2)]' : 'bg-slate-100 text-slate-600')}>
                                     {feature.icon}
                                 </div>
-                                <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
-                                <p className={'leading-relaxed ' + (idx === 1 ? 'text-cyan-100/80' : 'text-slate-400')}>
+                                <h3 className="text-xl font-bold mb-3 text-slate-800">{feature.title}</h3>
+                                <p className={'leading-relaxed ' + (idx === 1 ? 'text-cyan-700' : 'text-slate-500')}>
                                     {feature.description}
                                 </p>
                             </Card>
