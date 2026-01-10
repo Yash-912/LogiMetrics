@@ -12,8 +12,8 @@ const rateLimit = require('express-rate-limit');
 
 const routes = require('./routes');
 const errorMiddleware = require('./middleware/error.middleware');
-const loggerMiddleware = require('./middleware/logger.middleware');
-const logger = require('./utils/logger.util');
+const { requestLogger } = require('./middleware/logger.middleware');
+const logger = require('./config/logger');
 
 const app = express();
 
@@ -44,7 +44,7 @@ app.use(compression());
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
-app.use(loggerMiddleware);
+app.use(requestLogger);
 
 // Rate limiting
 const limiter = rateLimit({

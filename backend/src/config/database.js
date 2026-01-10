@@ -14,6 +14,12 @@ const config = {
   database: process.env.POSTGRES_DB || 'logistics',
   dialect: 'postgres',
   logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  },
   pool: {
     max: 20,
     min: 5,
@@ -38,17 +44,21 @@ async function initializePostgres() {
   try {
     await sequelize.authenticate();
     logger.info('PostgreSQL connection established successfully');
-    
-    // Sync models in development (be careful in production)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      logger.info('Database models synchronized');
-    }
-    
+
+    // Auto-sync disabled - use migrations to create tables
+    // To enable, uncomment the lines below:
+    // if (process.env.NODE_ENV === 'development') {
+    //   await sequelize.sync({ force: false });
+    //   logger.info('Database models synchronized');
+    // }
+
+    logger.info('Auto-sync disabled. Run migrations to create tables: npm run migrate');
+
     return sequelize;
   } catch (error) {
-    logger.error('Unable to connect to PostgreSQL:', error);
-    throw error;
+    logger.warn('PostgreSQL connection failed:', error.message);
+    logger.warn('App will continue without PostgreSQL - some features may not work');
+    return null;
   }
 }
 
@@ -57,3 +67,4 @@ module.exports = {
   initializePostgres,
   Sequelize
 };
+

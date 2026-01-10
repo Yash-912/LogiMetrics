@@ -6,7 +6,7 @@ const { success, error } = require('../utils/response.util');
 const { AppError } = require('../middleware/error.middleware');
 const { redisClient } = require('../config/redis');
 const logger = require('../utils/logger.util');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 /**
  * Get system statistics (admin dashboard)
@@ -176,7 +176,7 @@ const updateUserStatus = async (req, res, next) => {
     }
 
     const oldStatus = user.status;
-    await user.update({ 
+    await user.update({
       status,
       statusChangedAt: new Date(),
       statusChangeReason: reason
@@ -274,7 +274,7 @@ const deleteUser = async (req, res, next) => {
       await user.destroy();
       logger.info('User permanently deleted', { userId: id, by: req.user.id });
     } else {
-      await user.update({ 
+      await user.update({
         status: 'deleted',
         deletedAt: new Date(),
         deletedBy: req.user.id
@@ -329,8 +329,8 @@ const getAllCompanies = async (req, res, next) => {
     const { rows: companies, count } = await Company.findAndCountAll({
       where,
       include: [
-        { 
-          model: User, 
+        {
+          model: User,
           as: 'users',
           attributes: ['id'],
           required: false
@@ -443,7 +443,7 @@ const updateSystemSetting = async (req, res, next) => {
     const { value, description } = req.body;
 
     let setting = await Setting.findOne({ where: { key, isSystem: true } });
-    
+
     if (!setting) {
       // Create new setting
       setting = await Setting.create({
@@ -554,7 +554,7 @@ const getAuditLogs = async (req, res, next) => {
     if (userId) query.userId = userId;
     if (action) query.action = { $regex: action, $options: 'i' };
     if (resource) query.resource = resource;
-    
+
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
@@ -607,10 +607,10 @@ const clearCache = async (req, res, next) => {
       // Clear all cache (except critical keys)
       const keys = await redisClient.keys('*');
       const excludePatterns = ['system:maintenance', 'system:settings'];
-      const keysToDelete = keys.filter(key => 
+      const keysToDelete = keys.filter(key =>
         !excludePatterns.some(p => key.startsWith(p))
       );
-      
+
       if (keysToDelete.length > 0) {
         await redisClient.del(keysToDelete);
         keysDeleted = keysToDelete.length;
@@ -810,19 +810,19 @@ const sendBroadcast = async (req, res, next) => {
       userId: req.user.id,
       action: 'BROADCAST_SENT',
       resource: 'System',
-      details: { 
-        title, 
+      details: {
+        title,
         recipientCount: targetUsers.length,
         targetRoles,
-        targetCompanies 
+        targetCompanies
       },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     });
 
-    logger.info('Broadcast sent', { 
-      by: req.user.id, 
-      recipientCount: targetUsers.length 
+    logger.info('Broadcast sent', {
+      by: req.user.id,
+      recipientCount: targetUsers.length
     });
 
     return success(res, 'Broadcast sent successfully', 200, {

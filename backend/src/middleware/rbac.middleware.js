@@ -36,7 +36,7 @@ const hasRole = (...allowedRoles) => {
     const hasAllowedRole = allowedRoles.some(role => {
       // Direct role match
       if (role === userRole) return true;
-      
+
       // Check role hierarchy
       const inheritedRoles = roleHierarchy[userRole] || [userRole];
       return inheritedRoles.includes(role);
@@ -85,11 +85,11 @@ const hasPermission = (...requiredPermissions) => {
       const hasRequiredPermission = requiredPermissions.some(permission => {
         // Direct permission match
         if (userPermissions.includes(permission)) return true;
-        
+
         // Check for 'manage' permission which grants all actions
         const module = permission.split('.')[0];
         if (userPermissions.includes(`${module}.manage`)) return true;
-        
+
         return false;
       });
 
@@ -122,7 +122,7 @@ const isOwnerOrAdmin = (getResourceOwnerId) => {
 
     try {
       const ownerId = await getResourceOwnerId(req);
-      
+
       if (ownerId === req.user.id || ownerId === req.user.companyId) {
         return next();
       }
@@ -151,7 +151,7 @@ const sameCompany = (getCompanyId) => {
 
     try {
       const resourceCompanyId = await getCompanyId(req);
-      
+
       if (resourceCompanyId === req.user.companyId) {
         return next();
       }
@@ -187,5 +187,8 @@ module.exports = {
   isOwnerOrAdmin,
   sameCompany,
   strictRole,
+  // Aliases for route files
+  authorize: hasRole,
+  checkPermission: hasPermission,
   roleHierarchy
 };

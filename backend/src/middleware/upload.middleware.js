@@ -122,16 +122,24 @@ const handleUploadError = (err, req, res, next) => {
       message: err.message
     });
   }
-  
+
   if (err) {
     return res.status(400).json({
       success: false,
       message: err.message || 'File upload failed'
     });
   }
-  
+
   next();
 };
+
+// Dynamic single file upload - takes field name as parameter
+const uploadSingle = (fieldName) => uploadImage.single(fieldName);
+const uploadDocumentSingle = (fieldName) => uploadDocument.single(fieldName);
+
+// Dynamic multiple file upload - takes field name and max count as parameters
+const uploadMultiple = (fieldName, maxCount = 10) => uploadImage.array(fieldName, maxCount);
+const uploadDocumentMultiple = (fieldName, maxCount = 10) => uploadDocument.array(fieldName, maxCount);
 
 module.exports = {
   uploadImage,
@@ -145,5 +153,10 @@ module.exports = {
   singleFile,
   multipleFiles,
   podUpload,
-  handleUploadError
+  handleUploadError,
+  // Dynamic upload functions for flexibility
+  uploadSingle,
+  uploadDocumentSingle,
+  uploadMultiple,
+  uploadDocumentMultiple
 };

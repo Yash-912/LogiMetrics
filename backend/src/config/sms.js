@@ -6,11 +6,22 @@
 const twilio = require('twilio');
 const logger = require('../utils/logger.util');
 
-// Initialize Twilio client
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+// Initialize Twilio client (conditional - only if valid credentials are provided)
+let client = null;
+const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+
+// Only initialize if SID starts with 'AC' (valid Twilio format)
+if (twilioSid && twilioToken && twilioSid.startsWith('AC')) {
+  try {
+    client = twilio(twilioSid, twilioToken);
+    logger.info('Twilio SMS service initialized successfully');
+  } catch (err) {
+    logger.warn('Twilio initialization failed:', err.message);
+  }
+} else {
+  logger.warn('Twilio credentials not configured or invalid - SMS features will be disabled');
+}
 
 const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
@@ -57,34 +68,34 @@ async function sendBulkSMS(recipients, message) {
  * SMS templates
  */
 const smsTemplates = {
-  welcome: (name) => 
+  welcome: (name) =>
     `Welcome to LogiMetrics, ${name}! Your logistics management is now simplified. Login to get started.`,
 
-  otpVerification: (otp) => 
+  otpVerification: (otp) =>
     `Your LogiMetrics OTP is: ${otp}. Valid for 10 minutes. Do not share with anyone.`,
 
-  shipmentCreated: (trackingId) => 
+  shipmentCreated: (trackingId) =>
     `Your shipment ${trackingId} has been created. Track it at: ${process.env.FRONTEND_URL}/track/${trackingId}`,
 
-  shipmentPickedUp: (trackingId) => 
+  shipmentPickedUp: (trackingId) =>
     `Your shipment ${trackingId} has been picked up and is on its way!`,
 
-  shipmentOutForDelivery: (trackingId) => 
+  shipmentOutForDelivery: (trackingId) =>
     `Your shipment ${trackingId} is out for delivery. Expected today!`,
 
-  shipmentDelivered: (trackingId) => 
+  shipmentDelivered: (trackingId) =>
     `Your shipment ${trackingId} has been delivered. Thank you for using LogiMetrics!`,
 
-  deliveryAssigned: (driverName, shipmentCount) => 
+  deliveryAssigned: (driverName, shipmentCount) =>
     `Hi ${driverName}, you have ${shipmentCount} new delivery(ies) assigned. Check your app for details.`,
 
-  paymentReminder: (invoiceNumber, amount, dueDate) => 
+  paymentReminder: (invoiceNumber, amount, dueDate) =>
     `Reminder: Invoice ${invoiceNumber} for ₹${amount} is due on ${dueDate}. Pay now to avoid late fees.`,
 
-  maintenanceReminder: (vehicleNumber, date) => 
+  maintenanceReminder: (vehicleNumber, date) =>
     `Reminder: Vehicle ${vehicleNumber} is due for maintenance on ${date}. Please schedule accordingly.`,
 
-  delayAlert: (trackingId, newEta) => 
+  delayAlert: (trackingId, newEta) =>
     `Alert: Your shipment ${trackingId} is delayed. New ETA: ${newEta}. We apologize for the inconvenience.`
 };
 

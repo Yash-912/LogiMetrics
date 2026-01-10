@@ -7,14 +7,26 @@ const Razorpay = require('razorpay');
 const Stripe = require('stripe');
 const logger = require('../utils/logger.util');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+// Initialize Razorpay (conditional - only if credentials are provided)
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+  logger.info('Razorpay initialized successfully');
+} else {
+  logger.warn('Razorpay credentials not found - payment features will be disabled');
+}
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe (conditional - only if credentials are provided)
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  logger.info('Stripe initialized successfully');
+} else {
+  logger.warn('Stripe credentials not found - payment features will be disabled');
+}
 
 /**
  * Create Razorpay order

@@ -10,9 +10,22 @@ let redisClient = null;
 
 async function initializeRedis() {
   try {
-    redisClient = createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379'
-    });
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const isUpstash = redisUrl.includes('upstash');
+
+    const redisConfig = {
+      url: redisUrl
+    };
+
+    // For Upstash/Cloud Redis, we might need specific socket options
+    if (redisUrl.startsWith('rediss://')) {
+      redisConfig.socket = {
+        tls: true,
+        rejectUnauthorized: false // Often needed for some cloud providers
+      };
+    }
+
+    redisClient = createClient(redisConfig);
 
     redisClient.on('error', (err) => {
       logger.error('Redis Client Error:', err);

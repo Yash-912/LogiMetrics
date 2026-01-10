@@ -17,9 +17,9 @@ const mongoOptions = {
 async function initializeMongoDB() {
   try {
     mongoose.set('strictQuery', false);
-    
+
     await mongoose.connect(MONGODB_URI, mongoOptions);
-    
+
     mongoose.connection.on('connected', () => {
       logger.info('MongoDB connected successfully');
     });
@@ -34,8 +34,9 @@ async function initializeMongoDB() {
 
     return mongoose.connection;
   } catch (error) {
-    logger.error('Failed to connect to MongoDB:', error);
-    throw error;
+    logger.warn('MongoDB connection failed:', error.message);
+    logger.warn('App will continue without MongoDB - some features may not work');
+    return null; // Return null instead of throwing
   }
 }
 

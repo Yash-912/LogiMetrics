@@ -1,0 +1,7 @@
+{"duration":"12ms","ip":"::1","level":"error","message":"GET /api/health 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:01:06","url":"/api/health"}
+{"duration":"4ms","ip":"::1","level":"error","message":"GET /api/health 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:01:06","url":"/api/health"}
+{"duration":"2ms","ip":"::1","level":"error","message":"GET /favicon.ico 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:01:06","url":"/favicon.ico"}
+{"duration":"2ms","ip":"::1","level":"error","message":"GET /favicon.ico 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:01:06","url":"/favicon.ico"}
+{"duration":"8ms","ip":"::1","level":"error","message":"GET /api/health 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:19:25","url":"/api/health"}
+{"duration":"2ms","ip":"::1","level":"error","message":"GET /api/health 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:19:25","url":"/api/health"}
+{"duration":"1ms","ip":"::1","level":"error","message":"GET / 404","method":"GET","service":"logimetrics-backend","statusCode":404,"timestamp":"2026-01-10 13:19:39","url":"/"}

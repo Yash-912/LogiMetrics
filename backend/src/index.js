@@ -11,48 +11,54 @@ const { initializeMongoDB } = require('./config/mongodb');
 const { initializeRedis } = require('./config/redis');
 const { initializeSocket } = require('./config/socket');
 const logger = require('./utils/logger.util');
-const { startCronJobs } = require('./jobs');
+const { initializeJobs } = require('./jobs');
 
 const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
     // Initialize PostgreSQL
+    console.log('Step 1: Connecting to PostgreSQL...');
     await initializePostgres();
-    logger.info('PostgreSQL connected successfully');
+    console.log('Step 1: PostgreSQL connected successfully');
 
     // Initialize MongoDB
+    console.log('Step 2: Connecting to MongoDB...');
     await initializeMongoDB();
-    logger.info('MongoDB connected successfully');
+    console.log('Step 2: MongoDB connected successfully');
 
     // Initialize Redis (optional - won't fail if not available)
+    console.log('Step 3: Connecting to Redis...');
     try {
       await initializeRedis();
-      logger.info('Redis connected successfully');
+      console.log('Step 3: Redis connected successfully');
     } catch (redisError) {
-      logger.warn('Redis connection failed, continuing without cache:', redisError.message);
+      console.log('Step 3: Redis skipped -', redisError.message);
     }
 
     // Create HTTP server
+    console.log('Step 4: Starting HTTP server...');
     const server = app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+      console.log(`Step 4: Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     });
 
     // Initialize Socket.io
+    console.log('Step 5: Initializing Socket.io...');
     initializeSocket(server);
-    logger.info('Socket.io initialized');
+    console.log('Step 5: Socket.io initialized');
 
     // Start cron jobs
-    startCronJobs();
-    logger.info('Cron jobs started');
+    console.log('Step 6: Starting cron jobs...');
+    initializeJobs();
+    console.log('Step 6: Cron jobs started');
 
     // Graceful shutdown
     const gracefulShutdown = async (signal) => {
       logger.info(`${signal} received. Starting graceful shutdown...`);
-      
+
       server.close(async () => {
         logger.info('HTTP server closed');
-        
+
         try {
           await sequelize.close();
           logger.info('PostgreSQL connection closed');

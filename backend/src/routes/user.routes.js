@@ -19,7 +19,7 @@ router.use(authenticate);
 router.get(
   '/',
   authorize(['admin', 'manager']),
-  userValidator.getUsers,
+  userValidator.listUsersValidation,
   validate,
   userController.getUsers
 );
@@ -41,7 +41,7 @@ router.get(
  */
 router.put(
   '/me/profile',
-  userValidator.updateProfile,
+  userValidator.updateProfileValidation,
   validate,
   userController.updateProfile
 );
@@ -84,7 +84,7 @@ router.get(
  */
 router.get(
   '/:id',
-  userValidator.getUserById,
+  userValidator.getUserValidation,
   validate,
   userController.getUserById
 );
@@ -97,7 +97,7 @@ router.get(
 router.post(
   '/',
   authorize(['admin']),
-  userValidator.createUser,
+  userValidator.createUserValidation,
   validate,
   userController.createUser
 );
@@ -110,7 +110,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['admin', 'manager']),
-  userValidator.updateUser,
+  userValidator.updateUserValidation,
   validate,
   userController.updateUser
 );
@@ -123,7 +123,7 @@ router.put(
 router.delete(
   '/:id',
   authorize(['admin']),
-  userValidator.getUserById,
+  userValidator.getUserValidation,
   validate,
   userController.deleteUser
 );
@@ -136,7 +136,7 @@ router.delete(
 router.put(
   '/:id/status',
   authorize(['admin']),
-  userValidator.updateStatus,
+  userValidator.updateStatusValidation,
   validate,
   userController.updateStatus
 );
@@ -149,7 +149,7 @@ router.put(
 router.get(
   '/:id/activity',
   authorize(['admin', 'manager']),
-  userValidator.getUserById,
+  userValidator.getUserValidation,
   validate,
   userController.getUserActivity
 );
@@ -162,7 +162,7 @@ router.get(
 router.post(
   '/bulk',
   authorize(['admin']),
-  userValidator.bulkOperation,
+  userValidator.bulkOperationValidation,
   validate,
   userController.bulkOperation
 );
