@@ -511,7 +511,250 @@ module.exports = {
   sendInvoiceValidation,
   recordPaymentValidation,
 
+  // Stripe-specific validators
+  createPaymentIntentValidation: [
+    body('invoiceId')
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage('Invoice ID cannot be empty'),
+
+    body('amount')
+      .notEmpty()
+      .withMessage('Amount is required')
+      .isFloat({ min: 0.01 })
+      .withMessage('Amount must be greater than 0.01'),
+
+    body('currency')
+      .optional()
+      .trim()
+      .isLength({ min: 3, max: 3 })
+      .withMessage('Currency must be a 3-letter code'),
+
+    body('stripeCustomerId')
+      .notEmpty()
+      .withMessage('Stripe customer ID is required')
+      .trim(),
+
+    body('paymentMethodId')
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage('Payment method ID cannot be empty'),
+
+    body('description')
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Description must not exceed 500 characters'),
+
+    body('metadata')
+      .optional()
+      .isObject()
+      .withMessage('Metadata must be an object'),
+  ],
+
+  confirmPaymentIntentValidation: [
+    body('paymentIntentId')
+      .notEmpty()
+      .withMessage('Payment intent ID is required')
+      .trim(),
+
+    body('paymentMethodId')
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage('Payment method ID cannot be empty'),
+
+    body('returnUrl')
+      .optional()
+      .trim()
+      .isURL()
+      .withMessage('Return URL must be a valid URL'),
+  ],
+
+  savePaymentMethodValidation: [
+    body('type')
+      .notEmpty()
+      .withMessage('Payment method type is required')
+      .isIn(['card', 'sepa_debit', 'ach_debit', 'ideal', 'afterpay_clearpay'])
+      .withMessage('Invalid payment method type'),
+
+    body('card')
+      .optional()
+      .isObject()
+      .withMessage('Card data must be an object'),
+
+    body('card.number')
+      .if((value, { req }) => req.body.type === 'card')
+      .notEmpty()
+      .withMessage('Card number is required')
+      .matches(/^\d{13,19}$/)
+      .withMessage('Card number must be between 13 and 19 digits'),
+
+    body('card.exp_month')
+      .if((value, { req }) => req.body.type === 'card')
+      .notEmpty()
+      .withMessage('Expiration month is required')
+      .isInt({ min: 1, max: 12 })
+      .withMessage('Expiration month must be between 1 and 12'),
+
+    body('card.exp_year')
+      .if((value, { req }) => req.body.type === 'card')
+      .notEmpty()
+      .withMessage('Expiration year is required')
+      .isInt()
+      .withMessage('Expiration year must be a number'),
+
+    body('card.cvc')
+      .if((value, { req }) => req.body.type === 'card')
+      .notEmpty()
+      .withMessage('CVC is required')
+      .matches(/^\d{3,4}$/)
+      .withMessage('CVC must be 3 or 4 digits'),
+
+    body('billingDetails')
+      .optional()
+      .isObject()
+      .withMessage('Billing details must be an object'),
+
+    body('billingDetails.name')
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Name must be between 2 and 100 characters'),
+
+    body('billingDetails.email')
+      .optional()
+      .isEmail()
+      .withMessage('Invalid email address')
+      .normalizeEmail(),
+
+    body('billingDetails.phone')
+      .optional()
+      .trim()
+      .matches(/^[\d+\-\s()]+$/)
+      .withMessage('Invalid phone number'),
+
+    body('nickname')
+      .optional()
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage('Nickname must not exceed 100 characters'),
+  ],
+
+  chargeWithPaymentMethodValidation: [
+    body('invoiceId')
+      .notEmpty()
+      .withMessage('Invoice ID is required')
+      .trim(),
+
+    body('amount')
+      .notEmpty()
+      .withMessage('Amount is required')
+      .isFloat({ min: 0.01 })
+      .withMessage('Amount must be greater than 0.01'),
+
+    body('currency')
+      .optional()
+      .trim()
+      .isLength({ min: 3, max: 3 })
+      .withMessage('Currency must be a 3-letter code'),
+
+    body('stripeCustomerId')
+      .notEmpty()
+      .withMessage('Stripe customer ID is required')
+      .trim(),
+
+    body('stripePaymentMethodId')
+      .notEmpty()
+      .withMessage('Stripe payment method ID is required')
+      .trim(),
+
+    body('description')
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Description must not exceed 500 characters'),
+
+    body('metadata')
+      .optional()
+      .isObject()
+      .withMessage('Metadata must be an object'),
+
+    body('offSession')
+      .optional()
+      .isBoolean()
+      .withMessage('Off-session must be a boolean'),
+  ],
+
+  refundWithStripeValidation: [
+    param('transactionId')
+      .trim()
+      .notEmpty()
+      .withMessage('Transaction ID is required'),
+
+    body('amount')
+      .optional()
+      .isFloat({ min: 0.01 })
+      .withMessage('Refund amount must be greater than 0.01'),
+
+    body('reason')
+      .notEmpty()
+      .withMessage('Refund reason is required')
+      .isIn(['duplicate', 'fraudulent', 'requested_by_customer'])
+      .withMessage('Invalid refund reason'),
+
+    body('metadata')
+      .optional()
+      .isObject()
+      .withMessage('Metadata must be an object'),
+  ],
+
+  listPaymentMethodsValidation: [
+    query('type')
+      .optional()
+      .isIn(['card', 'sepa_debit', 'ach_debit', 'ideal', 'afterpay_clearpay'])
+      .withMessage('Invalid payment method type'),
+  ],
+
+  deletePaymentMethodValidation: [
+    param('methodId')
+      .trim()
+      .notEmpty()
+      .withMessage('Payment method ID is required'),
+  ],
+
+  setDefaultPaymentMethodValidation: [
+    param('methodId')
+      .trim()
+      .notEmpty()
+      .withMessage('Payment method ID is required'),
+  ],
+
+  payInvoiceWithStripeValidation: [
+    param('invoiceId')
+      .trim()
+      .notEmpty()
+      .withMessage('Invoice ID is required'),
+
+    body('stripePaymentMethodId')
+      .notEmpty()
+      .withMessage('Stripe payment method ID is required')
+      .trim(),
+
+    body('amount')
+      .optional()
+      .isFloat({ min: 0.01 })
+      .withMessage('Amount must be greater than 0.01'),
+
+    body('metadata')
+      .optional()
+      .isObject()
+      .withMessage('Metadata must be an object'),
+  ],
+
   // Aliases
-  refundValidation: refundPaymentValidation,
-  initiatePayment: initiatePaymentValidation // Just in case
+  refundValidation: refundPaymentValidation, // Just in case
+  initiatePayment: initiatePaymentValidation, // Just in case
 };

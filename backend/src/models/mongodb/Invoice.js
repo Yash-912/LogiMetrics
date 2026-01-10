@@ -12,6 +12,7 @@ const invoiceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
+      index: true,
     },
     shipmentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,6 +21,7 @@ const invoiceSchema = new mongoose.Schema(
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      index: true,
     },
     customerName: String,
     customerEmail: String,
@@ -46,7 +48,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "sent", "viewed", "paid", "overdue", "cancelled"],
+      enum: ["draft", "sent", "viewed", "paid", "overdue", "cancelled", "partially_paid"],
       default: "draft",
       index: true,
     },
@@ -54,9 +56,40 @@ const invoiceSchema = new mongoose.Schema(
     paidDate: Date,
     paymentMethod: String,
     notes: String,
+
+    // Stripe-specific fields
+    stripeInvoiceId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+    stripePaymentIntentId: {
+      type: String,
+      sparse: true,
+    },
+    stripePaymentStatus: String,
+
+    // Payment tracking
+    amountPaid: {
+      type: Number,
+      default: 0,
+    },
+    paymentDueAmount: {
+      type: Number,
+    },
+    paymentAttempts: [
+      {
+        transactionId: mongoose.Schema.Types.ObjectId,
+        amount: Number,
+        status: String,
+        createdAt: Date,
+      },
+    ],
+
     isDeleted: {
       type: Boolean,
       default: false,
+      index: true,
     },
   },
   {
@@ -76,5 +109,14 @@ invoiceSchema.pre("save", async function (next) {
   }
   next();
 });
+
+// Calculate remaining amount due
+invoiceSchema.virtual("remainingAmount").get(function () {
+  return this.totalAmount - (this.amountPaid || 0);
+});
+
+invoiceSchema.index({ companyId: 1, createdAt: -1 });
+invoiceSchema.index({ customerId: 1, status: 1 });
+invoiceSchema.index({ status: 1, dueDate: 1 });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);
