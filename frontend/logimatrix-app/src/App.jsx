@@ -1,52 +1,23 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Link,
-  useLocation,
-  Navigate,
-} from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 // Icons
-import { Menu, X } from "lucide-react";
+import { Menu, X } from 'lucide-react';
 
 // Pages
-import LandingPage from "@/pages/LandingPage";
-import LoginPage from "@/pages/LoginPage";
-import MoversPackers from "@/pages/MoversPackers";
-import TruckPartners from "@/pages/TruckPartners";
-import Enterprise from "@/pages/Enterprise";
-import AdminDashboard from "@/pages/AdminDashboard";
-import AccidentHeatmap from "@/pages/AccidentHeatmap";
+import LandingPage from '@/pages/LandingPage';
+import MoversPackers from '@/pages/MoversPackers';
+import TruckPartners from '@/pages/TruckPartners';
+import Enterprise from '@/pages/Enterprise';
+import AdminDashboard from '@/pages/AdminDashboard'; // New Import
 
 const AuthContext = createContext(null);
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  // Check if user is already logged in on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const accessToken = localStorage.getItem("access_token");
-
-    if (storedUser && accessToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
-      } catch (err) {
-        console.error("Error parsing stored user:", err);
-        localStorage.removeItem("user");
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-      }
-    }
-    setLoading(false);
-  }, []);
 
   const login = (userData) => {
     setUser(userData);
@@ -56,15 +27,10 @@ const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, isAuthenticated, login, logout, loading }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -75,7 +41,6 @@ const useAuth = () => useContext(AuthContext);
 // Public Navbar
 const Navbar = ({ onLogin }) => {
   const location = useLocation();
-  const { isAuthenticated, logout } = useAuth();
   const isActive = (path) => location.pathname === path;
 
   return (
@@ -85,143 +50,75 @@ const Navbar = ({ onLogin }) => {
           <Link to="/" className="flex items-center space-x-2">
             <div className="text-2xl font-black tracking-tighter">
               <span className="text-white">Logi</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                Matrix
-              </span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Matrix</span>
             </div>
           </Link>
 
           <div className="hidden md:flex items-center space-x-8">
-            <Link
-              to="/"
-              className={`text-sm font-medium transition-colors ${
-                isActive("/")
-                  ? "text-cyan-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Home
-            </Link>
-            <Link
-              to="/movers-packers"
-              className={`text-sm font-medium transition-colors ${
-                isActive("/movers-packers")
-                  ? "text-cyan-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Movers & Packers
-            </Link>
-            <Link
-              to="/truck-partners"
-              className={`text-sm font-medium transition-colors ${
-                isActive("/truck-partners")
-                  ? "text-cyan-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Truck Partners
-            </Link>
-            <Link
-              to="/enterprise"
-              className={`text-sm font-medium transition-colors ${
-                isActive("/enterprise")
-                  ? "text-cyan-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              For Enterprise
-            </Link>
+            <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-cyan-400' : 'text-slate-400 hover:text-white'}`}>Home</Link>
+            <Link to="/movers-packers" className={`text-sm font-medium transition-colors ${isActive('/movers-packers') ? 'text-cyan-400' : 'text-slate-400 hover:text-white'}`}>Movers & Packers</Link>
+            <Link to="/truck-partners" className={`text-sm font-medium transition-colors ${isActive('/truck-partners') ? 'text-cyan-400' : 'text-slate-400 hover:text-white'}`}>Truck Partners</Link>
+            <Link to="/enterprise" className={`text-sm font-medium transition-colors ${isActive('/enterprise') ? 'text-cyan-400' : 'text-slate-400 hover:text-white'}`}>For Enterprise</Link>
           </div>
 
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  logout();
-                  onLogin?.();
-                }}
-              >
-                Log Out
-              </Button>
-            ) : (
-              <Button variant="accent" size="sm" onClick={onLogin}>
-                Log In
-              </Button>
-            )}
-          </div>
+          <Button variant="accent" size="sm" onClick={onLogin}>
+            Log In
+          </Button>
         </div>
       </div>
     </nav>
   );
 };
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 
 const AppContent = () => {
-  const { isAuthenticated, login, logout, loading } = useAuth();
+  const { isAuthenticated, login, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-500 animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const handleLoginClick = () => {
-    navigate("/login");
+  const handleLogin = () => {
+    login({ email: 'admin@logimatrix.com', role: 'admin', name: 'Admin' });
+    navigate('/dashboard'); // 🔥 THIS WAS MISSING
   };
 
-  const handleLoginSuccess = (userData) => {
-    console.log("🔐 handleLoginSuccess called with:", userData);
-    login(userData); // Call the AuthContext login function
-    navigate("/dashboard"); // Navigate to dashboard
-  };
+  // Determine if we should show the public Navbar
+  // Don't show Navbar if we are on the dashboard (or authenticated and trying to view dashboard)
+  const showNavbar = !isAuthenticated || location.pathname !== '/dashboard';
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
+  const [backendStatus, setBackendStatus] = useState('Checking...');
 
-  // Don't show navbar on login page
-  const showNavbar = location.pathname !== "/login";
+  useEffect(() => {
+    fetch('/api/health') // Changed to root health check as discussed
+      .then(res => res.json())
+      .then(data => setBackendStatus(data.success ? 'Connected' : 'Error'))
+      .catch(err => {
+        console.error('Backend check failed:', err);
+        setBackendStatus('Offline');
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#020617] text-white">
-      {showNavbar && <Navbar onLogin={handleLoginClick} />}
+      {/* Backend Status Indicator */}
+      <div className="fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-mono">
+        Backend: <span className={backendStatus === 'Connected' ? 'text-green-400' : 'text-red-400'}>{backendStatus}</span>
+      </div>
 
+      {showNavbar && <Navbar onLogin={handleLogin} />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route
-          path="/login"
-          element={<LoginPage onLoginSuccess={handleLoginSuccess} />}
-        />
         <Route path="/movers-packers" element={<MoversPackers />} />
         <Route path="/truck-partners" element={<TruckPartners />} />
         <Route path="/enterprise" element={<Enterprise />} />
 
         <Route
           path="/dashboard"
-          element={
-            isAuthenticated ? (
-              <AdminDashboard onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
+          element={isAuthenticated ? <AdminDashboard onLogout={logout} /> : <Navigate to="/" />}
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/accidents" element={<AccidentHeatmap />} />
       </Routes>
+
     </div>
   );
 };
