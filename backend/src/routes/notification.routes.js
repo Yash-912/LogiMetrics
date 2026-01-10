@@ -1,0 +1,179 @@
+const express = require('express');
+const router = express.Router();
+const notificationController = require('../controllers/notification.controller');
+const { notification: notificationValidator } = require('../validators');
+const { authenticate } = require('../middleware/auth.middleware');
+const { authorize } = require('../middleware/rbac.middleware');
+const { validate } = require('../middleware/validation.middleware');
+const { apiLimiter } = require('../middleware/rateLimit.middleware');
+
+// Apply authentication to all routes
+router.use(authenticate);
+
+/**
+ * @route   GET /api/notifications
+ * @desc    Get all notifications for current user
+ * @access  Private
+ */
+router.get(
+    '/',
+    notificationValidator.getNotificationsValidation,
+    validate,
+    notificationController.getNotifications
+);
+
+/**
+ * @route   GET /api/notifications/unread-count
+ * @desc    Get unread notification count
+ * @access  Private
+ */
+router.get(
+    '/unread-count',
+    notificationValidator.getCountValidation,
+    validate,
+    notificationController.getUnreadCount
+);
+
+/**
+ * @route   GET /api/notifications/preferences
+ * @desc    Get notification preferences
+ * @access  Private
+ */
+router.get(
+    '/preferences',
+    notificationValidator.getPreferencesValidation,
+    validate,
+    notificationController.getPreferences
+);
+
+/**
+ * @route   PUT /api/notifications/preferences
+ * @desc    Update notification preferences
+ * @access  Private
+ */
+router.put(
+    '/preferences',
+    notificationValidator.updatePreferencesValidation,
+    validate,
+    notificationController.updatePreferences
+);
+
+/**
+ * @route   GET /api/notifications/push/subscriptions
+ * @desc    Get push subscriptions for current user
+ * @access  Private
+ */
+router.get(
+    '/push/subscriptions',
+    notificationController.getPushSubscriptions
+);
+
+/**
+ * @route   POST /api/notifications/push/subscribe
+ * @desc    Register push subscription
+ * @access  Private
+ */
+router.post(
+    '/push/subscribe',
+    notificationValidator.subscribePushValidation,
+    validate,
+    notificationController.subscribePush
+);
+
+/**
+ * @route   POST /api/notifications/push/unsubscribe
+ * @desc    Unregister push subscription
+ * @access  Private
+ */
+router.post(
+    '/push/unsubscribe',
+    notificationValidator.unsubscribePushValidation,
+    validate,
+    notificationController.unsubscribePush
+);
+
+/**
+ * @route   GET /api/notifications/:id
+ * @desc    Get notification by ID
+ * @access  Private
+ */
+router.get(
+    '/:id',
+    notificationValidator.markAsReadValidation,
+    validate,
+    notificationController.getNotificationById
+);
+
+/**
+ * @route   PATCH /api/notifications/:id/read
+ * @desc    Mark notification as read
+ * @access  Private
+ */
+router.patch(
+    '/:id/read',
+    notificationValidator.markAsReadValidation,
+    validate,
+    notificationController.markAsRead
+);
+
+/**
+ * @route   PATCH /api/notifications/read-all
+ * @desc    Mark all notifications as read
+ * @access  Private
+ */
+router.patch(
+    '/read-all',
+    notificationValidator.markAllAsReadValidation,
+    validate,
+    notificationController.markAllAsRead
+);
+
+/**
+ * @route   DELETE /api/notifications/all
+ * @desc    Delete all notifications
+ * @access  Private
+ */
+router.delete(
+    '/all',
+    notificationController.deleteAllNotifications
+);
+
+/**
+ * @route   DELETE /api/notifications/:id
+ * @desc    Delete notification
+ * @access  Private
+ */
+router.delete(
+    '/:id',
+    notificationValidator.deleteNotificationValidation,
+    validate,
+    notificationController.deleteNotification
+);
+
+/**
+ * @route   POST /api/notifications/send
+ * @desc    Send notification (admin/system use)
+ * @access  Private (Admin)
+ */
+router.post(
+    '/send',
+    authorize(['admin']),
+    notificationValidator.createNotificationValidation,
+    validate,
+    notificationController.sendNotification
+);
+
+/**
+ * @route   POST /api/notifications/send-bulk
+ * @desc    Send bulk notification
+ * @access  Private (Admin)
+ */
+router.post(
+    '/send-bulk',
+    authorize(['admin']),
+    notificationValidator.sendBulkNotificationValidation,
+    validate,
+    notificationController.sendBulkNotification
+);
+
+module.exports = router;
