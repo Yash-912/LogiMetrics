@@ -7,19 +7,32 @@ const Razorpay = require('razorpay');
 const Stripe = require('stripe');
 const logger = require('../utils/logger.util');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+// Initialize Razorpay (only if credentials are provided)
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+} else {
+  logger.warn('Razorpay credentials not configured - payment features will be disabled');
+}
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe (only if credentials are provided)
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+} else {
+  logger.warn('Stripe credentials not configured - payment features will be disabled');
+}
 
 /**
  * Create Razorpay order
  */
 async function createRazorpayOrder(amount, currency = 'INR', receipt = null) {
+  if (!razorpay) {
+    throw new Error('Razorpay is not configured');
+  }
   try {
     const options = {
       amount: Math.round(amount * 100), // Convert to paise

@@ -335,6 +335,7 @@ const bulkOperationValidation = [
 ];
 
 module.exports = {
+  // Original names
   createUserValidation,
   updateUserValidation,
   updateProfileValidation,
@@ -343,5 +344,18 @@ module.exports = {
   listUsersValidation,
   uploadAvatarValidation,
   updateStatusValidation,
-  bulkOperationValidation
+  bulkOperationValidation,
+  
+  // Aliased names for routes
+  createUser: createUserValidation,
+  updateUser: updateUserValidation,
+  updateProfile: updateProfileValidation,
+  deleteUser: deleteUserValidation,
+  getUser: getUserValidation,
+  getUserById: getUserValidation,
+  getUsers: listUsersValidation,
+  listUsers: listUsersValidation,
+  uploadAvatar: uploadAvatarValidation,
+  updateStatus: updateStatusValidation,
+  bulkOperation: bulkOperationValidation
 };

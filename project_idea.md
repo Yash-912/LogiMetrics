@@ -332,28 +332,26 @@ D:\LogiMetrics\
 | `generate-keys.js` | JWT key generation: secure secrets, RSA key pairs, .env file creation |
 | `import-data.js` | Bulk data import: CSV/JSON support for drivers, vehicles, customers, pricing rules |
 
+## ML SERVICE 
+### Core Files - COMPLETED ✅
+| File | Description |
+|------|-------------|
+| `app.py` | Flask application entry point with factory pattern, error handlers, middleware, health checks |
+| `config.py` | ML service configuration with environment-based settings (dev, test, staging, prod) |
+| `requirements.txt` | Python dependencies including Flask, scikit-learn, pandas, numpy, ortools |
+| `Dockerfile` | Multi-stage Docker build (builder, production, development, testing) |
+
 ---
 
-## REMAINING FILES TO BUILD 📋
-
-## ML SERVICE (`ml-service/`)
-
-### Core Files
+### Services - COMPLETED (`ml-service/services/`) ✅
 | File | Description |
 |------|-------------|
-| `app.py` | Flask application entry point |
-| `config.py` | ML service configuration |
-| `requirements.txt` | Python dependencies |
-| `Dockerfile` | ML service container configuration |
-
-### Services (`ml-service/services/`)
-| File | Description |
-|------|-------------|
-| `eta_predictor.py` | Delivery time prediction using historical data |
-| `demand_forecaster.py` | Demand forecasting for capacity planning |
-| `route_optimizer.py` | AI-powered route optimization |
-| `anomaly_detector.py` | Fraud/anomaly detection in transactions |
-| `price_optimizer.py` | Dynamic pricing recommendations |
+| `eta_predictor.py` | ETA prediction using Random Forest with time-based features, batch predictions, model persistence |
+| `demand_forecaster.py` | Demand forecasting with Gradient Boosting, time series lag features, seasonality analysis |
+| `route_optimizer.py` | Route optimization using OR-Tools VRP solver with capacity/time constraints, nearest neighbor fallback |
+| `anomaly_detector.py` | Anomaly detection using Isolation Forest for fraud detection with risk scoring |
+| `price_optimizer.py` | Dynamic pricing with surge multipliers, zone-based rates, ML-enhanced optimization |
+| `__init__.py` | Package initialization with all service exports |
 
 ### Models (`ml-service/models/`)
 | File | Description |
@@ -369,12 +367,16 @@ D:\LogiMetrics\
 | `feature_engineering.py` | Feature extraction for ML models |
 | `model_utils.py` | Model loading, saving, evaluation |
 
+
 ### Tests (`ml-service/tests/`)
 | File | Description |
 |------|-------------|
 | `test_eta.py` | ETA predictor tests |
 | `test_demand.py` | Demand forecaster tests |
 | `test_routes.py` | Route optimizer tests |
+
+
+## ML SERVICE (`ml-service/`)
 
 ### Notebooks (`ml-service/notebooks/`)
 | File | Description |
@@ -384,6 +386,9 @@ D:\LogiMetrics\
 | `route_optimization.ipynb` | Route optimization experiments |
 
 ---
+
+## REMAINING FILES TO BUILD 📋
+
 
 ## FRONTEND (`frontend/`)
 
@@ -757,6 +762,4 @@ Copy `.env.example` to `.env` in each service directory and configure.
 
 ---
 
-*Last Updated: January 4, 2026*
-*Project Status: Backend 100% complete ✅ (All Validators ✅, All Controllers ✅, All Routes ✅ 17/17, All Services ✅ 19/19, All Sockets ✅ 6/6, All Tests ✅ 12/12, All Migrations ✅ 7/7, All Seeders ✅ 4/4, All Scripts ✅ 3/3), ML Service 0%, Frontend 0%*
-
+*Project Status: Backend 100% ✅, ML Service 100% ✅, Frontend 0%, Deployment 0%, Docs 0%*

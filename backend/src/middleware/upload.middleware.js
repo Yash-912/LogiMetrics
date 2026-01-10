@@ -90,6 +90,10 @@ const multipleDocuments = uploadDocument.array('documents', 10);
 const singleFile = uploadAny.single('file');
 const multipleFiles = uploadAny.array('files', 10);
 
+// Dynamic field name upload functions
+const uploadSingle = (fieldName) => uploadAny.single(fieldName);
+const uploadMultiple = (fieldName, maxCount = 10) => uploadAny.array(fieldName, maxCount);
+
 // POD (Proof of Delivery) upload - signature and photo
 const podUpload = uploadImage.fields([
   { name: 'signature', maxCount: 1 },
@@ -145,5 +149,8 @@ module.exports = {
   singleFile,
   multipleFiles,
   podUpload,
-  handleUploadError
+  handleUploadError,
+  // Dynamic upload functions for routes
+  uploadSingle,
+  uploadMultiple
 };

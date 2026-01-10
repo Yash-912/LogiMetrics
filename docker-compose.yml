@@ -1,0 +1,149 @@
+# ============================================================
+# LogiMetrics Database Services
+# Username: Yash
+# ============================================================
+
+services:
+  # ============================================================
+  # PostgreSQL Database (Primary relational database)
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: logimetrics_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: Yash
+      POSTGRES_PASSWORD: Yash@Logi2024
+      POSTGRES_DB: logimetrics
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U Yash -d logimetrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - logimetrics_network
+
+  # ============================================================
+  # MongoDB Database (Tracking, logs, real-time data)
+  # ============================================================
+  mongodb:
+    image: mongo:6-jammy
+    container_name: logimetrics_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: Yash
+      MONGO_INITDB_ROOT_PASSWORD: Yash@Mongo2024
+      MONGO_INITDB_DATABASE: logimetrics
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - logimetrics_network
+
+  # ============================================================
+  # Redis Cache (Caching, sessions, pub/sub)
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: logimetrics_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass Yash@Redis2024
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "Yash@Redis2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - logimetrics_network
+
+  # ============================================================
+  # Adminer - Database Management UI (Optional)
+  # Access at http://localhost:8080
+  # ============================================================
+  adminer:
+    image: adminer:latest
+    container_name: logimetrics_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+      - mongodb
+    networks:
+      - logimetrics_network
+
+  # ============================================================
+  # Mongo Express - MongoDB Web UI (Optional)
+  # Access at http://localhost:8081
+  # ============================================================
+  mongo-express:
+    image: mongo-express:latest
+    container_name: logimetrics_mongo_express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: Yash
+      ME_CONFIG_MONGODB_ADMINPASSWORD: Yash@Mongo2024
+      ME_CONFIG_MONGODB_URL: mongodb://Yash:Yash@Mongo2024@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: Yash
+      ME_CONFIG_BASICAUTH_PASSWORD: Yash@Admin2024
+    depends_on:
+      - mongodb
+    networks:
+      - logimetrics_network
+
+  # ============================================================
+  # Redis Commander - Redis Web UI (Optional)
+  # Access at http://localhost:8082
+  # ============================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: logimetrics_redis_commander
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:Yash@Redis2024
+      HTTP_USER: Yash
+      HTTP_PASSWORD: Yash@Admin2024
+    depends_on:
+      - redis
+    networks:
+      - logimetrics_network
+
+# ============================================================
+# Volumes for data persistence
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================================
+# Network
+# ============================================================
+networks:
+  logimetrics_network:
+    driver: bridge

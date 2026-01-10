@@ -187,5 +187,8 @@ module.exports = {
   isOwnerOrAdmin,
   sameCompany,
   strictRole,
-  roleHierarchy
+  roleHierarchy,
+  // Aliases for routes
+  authorize: hasRole,
+  checkPermission: hasPermission
 };

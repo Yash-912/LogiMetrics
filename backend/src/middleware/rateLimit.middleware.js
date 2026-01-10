@@ -47,6 +47,18 @@ const passwordResetLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// Strict limiter for sensitive operations (password reset, verification, etc.)
+const strictLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 requests per hour
+  message: {
+    success: false,
+    message: 'Too many requests for this operation, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // File upload limiter
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -101,6 +113,7 @@ const createLimiter = (options) => {
 module.exports = {
   apiLimiter,
   authLimiter,
+  strictLimiter,
   passwordResetLimiter,
   uploadLimiter,
   paymentLimiter,

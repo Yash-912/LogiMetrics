@@ -459,6 +459,7 @@ const assignDriverValidation = [
 ];
 
 module.exports = {
+  // Original names
   createVehicleValidation,
   updateVehicleValidation,
   addMaintenanceValidation,
@@ -468,5 +469,20 @@ module.exports = {
   deleteVehicleValidation,
   listVehiclesValidation,
   getStatsValidation,
-  assignDriverValidation
+  assignDriverValidation,
+  
+  // Aliased names for routes
+  createVehicle: createVehicleValidation,
+  updateVehicle: updateVehicleValidation,
+  addMaintenance: addMaintenanceValidation,
+  addFuelLog: addFuelLogValidation,
+  updateStatus: updateStatusValidation,
+  getVehicle: getVehicleValidation,
+  getVehicleById: getVehicleValidation,
+  getVehicles: listVehiclesValidation,
+  deleteVehicle: deleteVehicleValidation,
+  getStats: getStatsValidation,
+  assignDriver: assignDriverValidation,
+  updateMaintenance: addMaintenanceValidation,
+  getTelemetry: getVehicleValidation
 };

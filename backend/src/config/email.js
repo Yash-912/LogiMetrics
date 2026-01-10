@@ -6,8 +6,14 @@
 const sgMail = require('@sendgrid/mail');
 const logger = require('../utils/logger.util');
 
-// Initialize SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Initialize SendGrid (only if API key is provided)
+let emailEnabled = false;
+if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  emailEnabled = true;
+} else {
+  logger.warn('SendGrid API key not configured - email features will be disabled');
+}
 
 const FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@logimetrics.com';
 const FROM_NAME = 'LogiMetrics';
@@ -16,6 +22,10 @@ const FROM_NAME = 'LogiMetrics';
  * Send single email
  */
 async function sendEmail({ to, subject, text, html, attachments = [] }) {
+  if (!emailEnabled) {
+    logger.warn(`Email not sent to ${to} - SendGrid not configured`);
+    return { success: false, status: 'disabled' };
+  }
   try {
     const msg = {
       to,

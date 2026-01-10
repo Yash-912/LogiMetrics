@@ -17,20 +17,27 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
-    // Initialize PostgreSQL
-    await initializePostgres();
-    logger.info('PostgreSQL connected successfully');
+    // Check if we should skip database connections (for testing routes)
+    const skipDb = process.env.SKIP_DB === 'true';
 
-    // Initialize MongoDB
-    await initializeMongoDB();
-    logger.info('MongoDB connected successfully');
+    if (!skipDb) {
+      // Initialize PostgreSQL
+      await initializePostgres();
+      logger.info('PostgreSQL connected successfully');
 
-    // Initialize Redis (optional - won't fail if not available)
-    try {
-      await initializeRedis();
-      logger.info('Redis connected successfully');
-    } catch (redisError) {
-      logger.warn('Redis connection failed, continuing without cache:', redisError.message);
+      // Initialize MongoDB
+      await initializeMongoDB();
+      logger.info('MongoDB connected successfully');
+
+      // Initialize Redis (optional - won't fail if not available)
+      try {
+        await initializeRedis();
+        logger.info('Redis connected successfully');
+      } catch (redisError) {
+        logger.warn('Redis connection failed, continuing without cache:', redisError.message);
+      }
+    } else {
+      logger.warn('SKIP_DB=true - Skipping database connections (testing mode)');
     }
 
     // Create HTTP server
@@ -42,9 +49,11 @@ async function startServer() {
     initializeSocket(server);
     logger.info('Socket.io initialized');
 
-    // Start cron jobs
-    startCronJobs();
-    logger.info('Cron jobs started');
+    // Start cron jobs (only if databases are connected)
+    if (!skipDb) {
+      startCronJobs();
+      logger.info('Cron jobs started');
+    }
 
     // Graceful shutdown
     const gracefulShutdown = async (signal) => {

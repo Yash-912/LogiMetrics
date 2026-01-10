@@ -498,6 +498,7 @@ const recordPaymentValidation = [
 ];
 
 module.exports = {
+  // Original names
   initiatePaymentValidation,
   verifyPaymentValidation,
   refundPaymentValidation,
@@ -509,5 +510,10 @@ module.exports = {
   deleteInvoiceValidation,
   listInvoicesValidation,
   sendInvoiceValidation,
-  recordPaymentValidation
+  recordPaymentValidation,
+  
+  // Aliased names for routes
+  refundValidation: refundPaymentValidation,
+  processPayment: initiatePaymentValidation,
+  verifyPayment: verifyPaymentValidation
 };

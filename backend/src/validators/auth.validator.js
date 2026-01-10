@@ -147,6 +147,7 @@ const resendVerificationValidation = [
 ];
 
 module.exports = {
+  // Original names
   registerValidation,
   loginValidation,
   forgotPasswordValidation,
@@ -154,5 +155,15 @@ module.exports = {
   refreshTokenValidation,
   verifyEmailValidation,
   changePasswordValidation,
-  resendVerificationValidation
+  resendVerificationValidation,
+  
+  // Aliased names for routes
+  register: registerValidation,
+  login: loginValidation,
+  forgotPassword: forgotPasswordValidation,
+  resetPassword: resetPasswordValidation,
+  refreshToken: refreshTokenValidation,
+  verifyEmail: verifyEmailValidation,
+  changePassword: changePasswordValidation,
+  resendVerification: resendVerificationValidation
 };

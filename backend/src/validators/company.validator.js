@@ -368,6 +368,7 @@ const getStatsValidation = [
 ];
 
 module.exports = {
+  // Original names
   createCompanyValidation,
   updateCompanyValidation,
   updateSettingsValidation,
@@ -377,5 +378,19 @@ module.exports = {
   listCompaniesValidation,
   teamMemberValidation,
   uploadLogoValidation,
-  getStatsValidation
+  getStatsValidation,
+  
+  // Aliased names for routes
+  createCompany: createCompanyValidation,
+  updateCompany: updateCompanyValidation,
+  updateSettings: updateSettingsValidation,
+  updateSubscription: updateSubscriptionValidation,
+  deleteCompany: deleteCompanyValidation,
+  getCompanyById: getCompanyValidation,
+  getCompanies: listCompaniesValidation,
+  addTeamMember: teamMemberValidation,
+  removeTeamMember: getCompanyValidation,
+  updateMemberRole: teamMemberValidation,
+  uploadLogo: uploadLogoValidation,
+  getStats: getStatsValidation
 };

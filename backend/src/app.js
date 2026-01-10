@@ -12,7 +12,7 @@ const rateLimit = require('express-rate-limit');
 
 const routes = require('./routes');
 const errorMiddleware = require('./middleware/error.middleware');
-const loggerMiddleware = require('./middleware/logger.middleware');
+const { loggerMiddleware } = require('./middleware/logger.middleware');
 const logger = require('./utils/logger.util');
 
 const app = express();

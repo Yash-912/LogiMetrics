@@ -6,11 +6,16 @@
 const twilio = require('twilio');
 const logger = require('../utils/logger.util');
 
-// Initialize Twilio client
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+// Initialize Twilio client (only if credentials are provided)
+let client = null;
+if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+  client = twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+} else {
+  logger.warn('Twilio credentials not configured - SMS features will be disabled');
+}
 
 const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
@@ -18,6 +23,10 @@ const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
  * Send SMS
  */
 async function sendSMS(to, message) {
+  if (!client) {
+    logger.warn('SMS not sent - Twilio not configured');
+    return { sid: null, status: 'disabled' };
+  }
   try {
     const result = await client.messages.create({
       body: message,

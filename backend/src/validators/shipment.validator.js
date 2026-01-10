@@ -514,6 +514,7 @@ const calculateCostValidation = [
 ];
 
 module.exports = {
+  // Original names
   createShipmentValidation,
   updateShipmentValidation,
   updateStatusValidation,
@@ -524,5 +525,22 @@ module.exports = {
   trackShipmentValidation,
   uploadPODValidation,
   bulkOperationValidation,
-  calculateCostValidation
+  calculateCostValidation,
+  
+  // Aliased names for routes
+  createShipment: createShipmentValidation,
+  updateShipment: updateShipmentValidation,
+  updateStatus: updateStatusValidation,
+  assignResources: assignResourcesValidation,
+  assignShipment: assignResourcesValidation,
+  getShipment: getShipmentValidation,
+  getShipmentById: getShipmentValidation,
+  getShipments: listShipmentsValidation,
+  deleteShipment: deleteShipmentValidation,
+  cancelShipment: updateStatusValidation,
+  trackShipment: trackShipmentValidation,
+  uploadPOD: uploadPODValidation,
+  bulkOperation: bulkOperationValidation,
+  bulkCreate: bulkOperationValidation,
+  calculateCost: calculateCostValidation
 };
