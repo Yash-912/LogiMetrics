@@ -4,7 +4,7 @@
  */
 
 const { Op, fn, col, literal } = require('sequelize');
-const { Shipment, Vehicle, Driver, Invoice, Transaction, Company } = require('../models/postgres');
+const { Shipment, Vehicle, Driver, Invoice, Transaction, Company } = require('../models/mongodb');
 const { AuditLog, LiveTracking } = require('../models/mongodb');
 const { setCache, getRedisClient, clearCachePattern } = require('../config/redis');
 const logger = require('../utils/logger.util');

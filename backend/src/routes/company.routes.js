@@ -1,12 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const companyController = require('../controllers/company.controller');
-const { companyValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize, checkPermission } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { uploadSingle } = require('../middleware/upload.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const companyController = require("../controllers/company.controller");
+const { companyValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize, checkPermission } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { uploadSingle } = require("../middleware/upload.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -17,10 +17,9 @@ router.use(authenticate);
  * @access  Private (Admin only)
  */
 router.get(
-  '/',
-  authorize(['admin']),
-  companyValidator.getCompanies,
-  validate,
+  "/",
+  authorize(["admin"]),
+  validate(companyValidator.getCompanies),
   companyController.getCompanies
 );
 
@@ -30,9 +29,8 @@ router.get(
  * @access  Private (Admin or company member)
  */
 router.get(
-  '/:id',
-  companyValidator.getCompanyById,
-  validate,
+  "/:id",
+  validate(companyValidator.getCompanyById),
   companyController.getCompanyById
 );
 
@@ -42,10 +40,9 @@ router.get(
  * @access  Private (Admin)
  */
 router.post(
-  '/',
-  authorize(['admin']),
-  companyValidator.createCompany,
-  validate,
+  "/",
+  authorize(["admin"]),
+  validate(companyValidator.createCompany),
   companyController.createCompany
 );
 
@@ -55,10 +52,9 @@ router.post(
  * @access  Private (Admin, Company Owner)
  */
 router.put(
-  '/:id',
-  authorize(['admin', 'company_owner']),
-  companyValidator.updateCompany,
-  validate,
+  "/:id",
+  authorize(["admin", "company_owner"]),
+  validate(companyValidator.updateCompany),
   companyController.updateCompany
 );
 
@@ -68,10 +64,9 @@ router.put(
  * @access  Private (Admin only)
  */
 router.delete(
-  '/:id',
-  authorize(['admin']),
-  companyValidator.getCompanyById,
-  validate,
+  "/:id",
+  authorize(["admin"]),
+  validate(companyValidator.getCompanyById),
   companyController.deleteCompany
 );
 
@@ -81,10 +76,9 @@ router.delete(
  * @access  Private (Admin, Company Owner, Manager)
  */
 router.get(
-  '/:id/settings',
-  authorize(['admin', 'company_owner', 'manager']),
-  companyValidator.getCompanyById,
-  validate,
+  "/:id/settings",
+  authorize(["admin", "company_owner", "manager"]),
+  validate(companyValidator.getCompanyById),
   companyController.getCompanySettings
 );
 
@@ -94,10 +88,9 @@ router.get(
  * @access  Private (Admin, Company Owner)
  */
 router.put(
-  '/:id/settings',
-  authorize(['admin', 'company_owner']),
-  companyValidator.updateSettings,
-  validate,
+  "/:id/settings",
+  authorize(["admin", "company_owner"]),
+  validate(companyValidator.updateSettings),
   companyController.updateCompanySettings
 );
 
@@ -107,9 +100,9 @@ router.put(
  * @access  Private (Admin, Company Owner)
  */
 router.post(
-  '/:id/logo',
-  authorize(['admin', 'company_owner']),
-  uploadSingle('logo'),
+  "/:id/logo",
+  authorize(["admin", "company_owner"]),
+  uploadSingle("logo"),
   companyController.uploadLogo
 );
 
@@ -119,10 +112,9 @@ router.post(
  * @access  Private (Admin, Company Owner)
  */
 router.get(
-  '/:id/subscription',
-  authorize(['admin', 'company_owner']),
-  companyValidator.getCompanyById,
-  validate,
+  "/:id/subscription",
+  authorize(["admin", "company_owner"]),
+  validate(companyValidator.getCompanyById),
   companyController.getSubscription
 );
 
@@ -132,10 +124,9 @@ router.get(
  * @access  Private (Admin)
  */
 router.put(
-  '/:id/subscription',
-  authorize(['admin']),
-  companyValidator.updateSubscription,
-  validate,
+  "/:id/subscription",
+  authorize(["admin"]),
+  validate(companyValidator.updateSubscription),
   companyController.updateSubscription
 );
 
@@ -145,8 +136,8 @@ router.put(
  * @access  Private (Admin, Company Owner, Manager)
  */
 router.get(
-  '/:id/team',
-  authorize(['admin', 'company_owner', 'manager']),
+  "/:id/team",
+  authorize(["admin", "company_owner", "manager"]),
   companyValidator.getCompanyById,
   validate,
   companyController.getTeamMembers
@@ -158,8 +149,8 @@ router.get(
  * @access  Private (Admin, Company Owner)
  */
 router.post(
-  '/:id/team',
-  authorize(['admin', 'company_owner']),
+  "/:id/team",
+  authorize(["admin", "company_owner"]),
   companyValidator.addTeamMember,
   validate,
   companyController.addTeamMember
@@ -171,8 +162,8 @@ router.post(
  * @access  Private (Admin, Company Owner)
  */
 router.delete(
-  '/:id/team/:userId',
-  authorize(['admin', 'company_owner']),
+  "/:id/team/:userId",
+  authorize(["admin", "company_owner"]),
   companyValidator.removeTeamMember,
   validate,
   companyController.removeTeamMember
@@ -184,8 +175,8 @@ router.delete(
  * @access  Private (Admin, Company Owner)
  */
 router.put(
-  '/:id/team/:userId/role',
-  authorize(['admin', 'company_owner']),
+  "/:id/team/:userId/role",
+  authorize(["admin", "company_owner"]),
   companyValidator.updateMemberRole,
   validate,
   companyController.updateMemberRole

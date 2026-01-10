@@ -2,18 +2,25 @@
  * Role-Based Access Control (RBAC) Middleware
  */
 
-const { forbiddenResponse } = require('../utils/response.util');
-const { Role, Permission } = require('../models/postgres');
-const logger = require('../utils/logger.util');
+const { forbiddenResponse } = require("../utils/response.util");
+const { Role, Permission } = require("../models/mongodb");
+const logger = require("../utils/logger.util");
 
 // Role hierarchy - higher roles inherit lower role permissions
 const roleHierarchy = {
-  admin: ['admin', 'fleet_manager', 'accountant', 'support', 'driver', 'customer'],
-  fleet_manager: ['fleet_manager', 'driver'],
-  accountant: ['accountant'],
-  support: ['support', 'customer'],
-  driver: ['driver'],
-  customer: ['customer']
+  admin: [
+    "admin",
+    "fleet_manager",
+    "accountant",
+    "support",
+    "driver",
+    "customer",
+  ],
+  fleet_manager: ["fleet_manager", "driver"],
+  accountant: ["accountant"],
+  support: ["support", "customer"],
+  driver: ["driver"],
+  customer: ["customer"],
 };
 
 /**
@@ -22,18 +29,18 @@ const roleHierarchy = {
 const hasRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return forbiddenResponse(res, 'Authentication required');
+      return forbiddenResponse(res, "Authentication required");
     }
 
     const userRole = req.user.role;
 
     // Admin has access to everything
-    if (userRole === 'admin') {
+    if (userRole === "admin") {
       return next();
     }
 
     // Check if user's role is in allowed roles
-    const hasAllowedRole = allowedRoles.some(role => {
+    const hasAllowedRole = allowedRoles.some((role) => {
       // Direct role match
       if (role === userRole) return true;
 
@@ -46,8 +53,12 @@ const hasRole = (...allowedRoles) => {
       return next();
     }
 
-    logger.warn(`Access denied for user ${req.user.id} with role ${userRole}. Required: ${allowedRoles.join(', ')}`);
-    return forbiddenResponse(res, 'Insufficient permissions');
+    logger.warn(
+      `Access denied for user ${
+        req.user.id
+      } with role ${userRole}. Required: ${allowedRoles.join(", ")}`
+    );
+    return forbiddenResponse(res, "Insufficient permissions");
   };
 };
 
@@ -57,37 +68,39 @@ const hasRole = (...allowedRoles) => {
 const hasPermission = (...requiredPermissions) => {
   return async (req, res, next) => {
     if (!req.user) {
-      return forbiddenResponse(res, 'Authentication required');
+      return forbiddenResponse(res, "Authentication required");
     }
 
     // Admin has all permissions
-    if (req.user.role === 'admin') {
+    if (req.user.role === "admin") {
       return next();
     }
 
     try {
       // Fetch user's role with permissions
       const role = await Role.findByPk(req.user.roleId, {
-        include: [{
-          model: Permission,
-          as: 'permissions',
-          attributes: ['name']
-        }]
+        include: [
+          {
+            model: Permission,
+            as: "permissions",
+            attributes: ["name"],
+          },
+        ],
       });
 
       if (!role) {
-        return forbiddenResponse(res, 'Role not found');
+        return forbiddenResponse(res, "Role not found");
       }
 
-      const userPermissions = role.permissions.map(p => p.name);
+      const userPermissions = role.permissions.map((p) => p.name);
 
       // Check if user has any of the required permissions
-      const hasRequiredPermission = requiredPermissions.some(permission => {
+      const hasRequiredPermission = requiredPermissions.some((permission) => {
         // Direct permission match
         if (userPermissions.includes(permission)) return true;
 
         // Check for 'manage' permission which grants all actions
-        const module = permission.split('.')[0];
+        const module = permission.split(".")[0];
         if (userPermissions.includes(`${module}.manage`)) return true;
 
         return false;
@@ -97,11 +110,15 @@ const hasPermission = (...requiredPermissions) => {
         return next();
       }
 
-      logger.warn(`Permission denied for user ${req.user.id}. Required: ${requiredPermissions.join(', ')}`);
-      return forbiddenResponse(res, 'Insufficient permissions');
+      logger.warn(
+        `Permission denied for user ${
+          req.user.id
+        }. Required: ${requiredPermissions.join(", ")}`
+      );
+      return forbiddenResponse(res, "Insufficient permissions");
     } catch (error) {
-      logger.error('Permission check error:', error);
-      return forbiddenResponse(res, 'Permission check failed');
+      logger.error("Permission check error:", error);
+      return forbiddenResponse(res, "Permission check failed");
     }
   };
 };
@@ -112,11 +129,11 @@ const hasPermission = (...requiredPermissions) => {
 const isOwnerOrAdmin = (getResourceOwnerId) => {
   return async (req, res, next) => {
     if (!req.user) {
-      return forbiddenResponse(res, 'Authentication required');
+      return forbiddenResponse(res, "Authentication required");
     }
 
     // Admin has access to everything
-    if (req.user.role === 'admin') {
+    if (req.user.role === "admin") {
       return next();
     }
 
@@ -127,10 +144,10 @@ const isOwnerOrAdmin = (getResourceOwnerId) => {
         return next();
       }
 
-      return forbiddenResponse(res, 'Access denied to this resource');
+      return forbiddenResponse(res, "Access denied to this resource");
     } catch (error) {
-      logger.error('Owner check error:', error);
-      return forbiddenResponse(res, 'Access check failed');
+      logger.error("Owner check error:", error);
+      return forbiddenResponse(res, "Access check failed");
     }
   };
 };
@@ -141,11 +158,11 @@ const isOwnerOrAdmin = (getResourceOwnerId) => {
 const sameCompany = (getCompanyId) => {
   return async (req, res, next) => {
     if (!req.user) {
-      return forbiddenResponse(res, 'Authentication required');
+      return forbiddenResponse(res, "Authentication required");
     }
 
     // Admin can access all companies
-    if (req.user.role === 'admin' && !req.user.companyId) {
+    if (req.user.role === "admin" && !req.user.companyId) {
       return next();
     }
 
@@ -156,10 +173,10 @@ const sameCompany = (getCompanyId) => {
         return next();
       }
 
-      return forbiddenResponse(res, 'Access denied - different company');
+      return forbiddenResponse(res, "Access denied - different company");
     } catch (error) {
-      logger.error('Company check error:', error);
-      return forbiddenResponse(res, 'Access check failed');
+      logger.error("Company check error:", error);
+      return forbiddenResponse(res, "Access check failed");
     }
   };
 };
@@ -170,14 +187,14 @@ const sameCompany = (getCompanyId) => {
 const strictRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return forbiddenResponse(res, 'Authentication required');
+      return forbiddenResponse(res, "Authentication required");
     }
 
     if (allowedRoles.includes(req.user.role)) {
       return next();
     }
 
-    return forbiddenResponse(res, 'Access restricted');
+    return forbiddenResponse(res, "Access restricted");
   };
 };
 
@@ -190,5 +207,5 @@ module.exports = {
   // Aliases for route files
   authorize: hasRole,
   checkPermission: hasPermission,
-  roleHierarchy
+  roleHierarchy,
 };

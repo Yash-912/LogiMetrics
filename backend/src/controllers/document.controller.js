@@ -1,13 +1,25 @@
-const { validationResult } = require('express-validator');
-const { Op } = require('sequelize');
-const { Document, User, Company, Shipment, Vehicle, Driver } = require('../models/postgres');
-const { AuditLog } = require('../models/mongodb');
-const { success, error } = require('../utils/response.util');
-const { AppError } = require('../middleware/error.middleware');
-const { uploadToS3, deleteFromS3, getSignedUrl, getFileMetadata } = require('../utils/fileUpload.util');
-const logger = require('../utils/logger.util');
-const path = require('path');
-const crypto = require('crypto');
+const { validationResult } = require("express-validator");
+const { Op } = require("sequelize");
+const {
+  Document,
+  User,
+  Company,
+  Shipment,
+  Vehicle,
+  Driver,
+} = require("../models/mongodb");
+const { AuditLog } = require("../models/mongodb");
+const { successResponse, errorResponse } = require("../utils/response.util");
+const { AppError } = require("../middleware/error.middleware");
+const {
+  uploadToS3,
+  deleteFromS3,
+  getSignedUrl,
+  getFileMetadata,
+} = require("../utils/fileUpload.util");
+const logger = require("../utils/logger.util");
+const path = require("path");
+const crypto = require("crypto");
 
 /**
  * Get all documents with filters
@@ -24,14 +36,14 @@ const getDocuments = async (req, res, next) => {
       entityId,
       status,
       search,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC'
+      sortBy = "createdAt",
+      sortOrder = "DESC",
     } = req.query;
 
     const where = {};
 
     // Company filter
-    if (req.user.role !== 'admin' && req.user.companyId) {
+    if (req.user.role !== "admin" && req.user.companyId) {
       where.companyId = req.user.companyId;
     }
 
@@ -44,7 +56,7 @@ const getDocuments = async (req, res, next) => {
     if (search) {
       where[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } }
+        { description: { [Op.iLike]: `%${search}%` } },
       ];
     }
 
@@ -53,22 +65,30 @@ const getDocuments = async (req, res, next) => {
     const { rows: documents, count } = await Document.findAndCountAll({
       where,
       include: [
-        { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: User, as: 'lastModifiedBy', attributes: ['id', 'firstName', 'lastName'] }
+        {
+          model: User,
+          as: "uploadedBy",
+          attributes: ["id", "firstName", "lastName", "email"],
+        },
+        {
+          model: User,
+          as: "lastModifiedBy",
+          attributes: ["id", "firstName", "lastName"],
+        },
       ],
       order: [[sortBy, sortOrder]],
       limit: parseInt(limit),
-      offset
+      offset,
     });
 
-    return success(res, 'Documents retrieved', 200, {
+    return successResponse(res, "Documents retrieved", 200, {
       documents,
       pagination: {
         total: count,
         pages: Math.ceil(count / limit),
         page: parseInt(page),
-        limit: parseInt(limit)
-      }
+        limit: parseInt(limit),
+      },
     });
   } catch (err) {
     next(err);
@@ -85,31 +105,42 @@ const getDocumentById = async (req, res, next) => {
 
     const document = await Document.findByPk(id, {
       include: [
-        { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: User, as: 'lastModifiedBy', attributes: ['id', 'firstName', 'lastName'] }
-      ]
+        {
+          model: User,
+          as: "uploadedBy",
+          attributes: ["id", "firstName", "lastName", "email"],
+        },
+        {
+          model: User,
+          as: "lastModifiedBy",
+          attributes: ["id", "firstName", "lastName"],
+        },
+      ],
     });
 
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to access this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to access this document", 403);
     }
 
     // Increment view count
-    await document.increment('viewCount');
+    await document.increment("viewCount");
 
     // Generate signed URL for access
     const signedUrl = await getSignedUrl(document.s3Key, 3600); // 1 hour expiry
 
-    return success(res, 'Document retrieved', 200, {
+    return successResponse(res, "Document retrieved", 200, {
       document: {
         ...document.toJSON(),
-        downloadUrl: signedUrl
-      }
+        downloadUrl: signedUrl,
+      },
     });
   } catch (err) {
     next(err);
@@ -124,11 +155,11 @@ const uploadDocument = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     if (!req.file) {
-      throw new AppError('No file uploaded', 400);
+      throw new AppError("No file uploaded", 400);
     }
 
     const {
@@ -140,7 +171,7 @@ const uploadDocument = async (req, res, next) => {
       entityId,
       tags,
       expiryDate,
-      isPublic
+      isPublic,
     } = req.body;
 
     // Validate entity exists if provided
@@ -150,11 +181,19 @@ const uploadDocument = async (req, res, next) => {
 
     // Generate unique filename
     const ext = path.extname(req.file.originalname);
-    const uniqueFilename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
-    const s3Key = `documents/${req.user.companyId || 'system'}/${entityType || 'general'}/${uniqueFilename}`;
+    const uniqueFilename = `${Date.now()}-${crypto
+      .randomBytes(8)
+      .toString("hex")}${ext}`;
+    const s3Key = `documents/${req.user.companyId || "system"}/${
+      entityType || "general"
+    }/${uniqueFilename}`;
 
     // Upload to S3
-    const uploadResult = await uploadToS3(req.file.buffer, s3Key, req.file.mimetype);
+    const uploadResult = await uploadToS3(
+      req.file.buffer,
+      s3Key,
+      req.file.mimetype
+    );
 
     // Get file metadata
     const metadata = await getFileMetadata(req.file);
@@ -178,26 +217,31 @@ const uploadDocument = async (req, res, next) => {
       url: uploadResult.location,
       tags: tags ? JSON.parse(tags) : [],
       expiryDate,
-      isPublic: isPublic === 'true',
-      status: 'active',
+      isPublic: isPublic === "true",
+      status: "active",
       metadata,
-      version: 1
+      version: 1,
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENT_UPLOADED',
-      resource: 'Document',
+      action: "DOCUMENT_UPLOADED",
+      resource: "Document",
       resourceId: document.id,
       details: { name: document.name, type, size: req.file.size },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    logger.info('Document uploaded', { documentId: document.id, userId: req.user.id });
+    logger.info("Document uploaded", {
+      documentId: document.id,
+      userId: req.user.id,
+    });
 
-    return success(res, 'Document uploaded successfully', 201, { document });
+    return successResponse(res, "Document uploaded successfully", 201, {
+      document,
+    });
   } catch (err) {
     next(err);
   }
@@ -211,28 +255,24 @@ const updateDocument = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
-    const {
-      name,
-      description,
-      category,
-      tags,
-      expiryDate,
-      isPublic,
-      status
-    } = req.body;
+    const { name, description, category, tags, expiryDate, isPublic, status } =
+      req.body;
 
     const document = await Document.findByPk(id);
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to update this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to update this document", 403);
     }
 
     await document.update({
@@ -243,21 +283,23 @@ const updateDocument = async (req, res, next) => {
       expiryDate,
       isPublic,
       status,
-      lastModifiedById: req.user.id
+      lastModifiedById: req.user.id,
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENT_UPDATED',
-      resource: 'Document',
+      action: "DOCUMENT_UPDATED",
+      resource: "Document",
       resourceId: document.id,
       changes: req.body,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Document updated successfully', 200, { document });
+    return successResponse(res, "Document updated successfully", 200, {
+      document,
+    });
   } catch (err) {
     next(err);
   }
@@ -270,7 +312,7 @@ const updateDocument = async (req, res, next) => {
 const uploadVersion = async (req, res, next) => {
   try {
     if (!req.file) {
-      throw new AppError('No file uploaded', 400);
+      throw new AppError("No file uploaded", 400);
     }
 
     const { id } = req.params;
@@ -278,12 +320,15 @@ const uploadVersion = async (req, res, next) => {
 
     const document = await Document.findByPk(id);
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to update this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to update this document", 403);
     }
 
     // Archive current version
@@ -294,15 +339,23 @@ const uploadVersion = async (req, res, next) => {
       size: document.size,
       uploadedById: document.lastModifiedById || document.uploadedById,
       uploadedAt: document.updatedAt,
-      changeNotes: document.changeNotes
+      changeNotes: document.changeNotes,
     });
 
     // Upload new version
     const ext = path.extname(req.file.originalname);
-    const uniqueFilename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
-    const s3Key = `documents/${document.companyId || 'system'}/${document.entityType || 'general'}/v${document.version + 1}-${uniqueFilename}`;
+    const uniqueFilename = `${Date.now()}-${crypto
+      .randomBytes(8)
+      .toString("hex")}${ext}`;
+    const s3Key = `documents/${document.companyId || "system"}/${
+      document.entityType || "general"
+    }/v${document.version + 1}-${uniqueFilename}`;
 
-    const uploadResult = await uploadToS3(req.file.buffer, s3Key, req.file.mimetype);
+    const uploadResult = await uploadToS3(
+      req.file.buffer,
+      s3Key,
+      req.file.mimetype
+    );
 
     await document.update({
       originalName: req.file.originalname,
@@ -314,21 +367,23 @@ const uploadVersion = async (req, res, next) => {
       version: document.version + 1,
       versionHistory,
       changeNotes,
-      lastModifiedById: req.user.id
+      lastModifiedById: req.user.id,
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENT_VERSION_UPLOADED',
-      resource: 'Document',
+      action: "DOCUMENT_VERSION_UPLOADED",
+      resource: "Document",
       resourceId: document.id,
       details: { version: document.version, changeNotes },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'New version uploaded successfully', 200, { document });
+    return successResponse(res, "New version uploaded successfully", 200, {
+      document,
+    });
   } catch (err) {
     next(err);
   }
@@ -343,33 +398,38 @@ const getVersionHistory = async (req, res, next) => {
     const { id } = req.params;
 
     const document = await Document.findByPk(id, {
-      attributes: ['id', 'name', 'version', 'versionHistory', 'companyId']
+      attributes: ["id", "name", "version", "versionHistory", "companyId"],
     });
 
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to access this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to access this document", 403);
     }
 
     const versions = [
       {
         version: document.version,
-        isCurrent: true
+        isCurrent: true,
       },
-      ...(document.versionHistory || []).map(v => ({
-        ...v,
-        isCurrent: false
-      })).reverse()
+      ...(document.versionHistory || [])
+        .map((v) => ({
+          ...v,
+          isCurrent: false,
+        }))
+        .reverse(),
     ];
 
-    return success(res, 'Version history retrieved', 200, {
+    return successResponse(res, "Version history retrieved", 200, {
       documentId: document.id,
       documentName: document.name,
-      versions
+      versions,
     });
   } catch (err) {
     next(err);
@@ -387,47 +447,53 @@ const downloadDocument = async (req, res, next) => {
 
     const document = await Document.findByPk(id);
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (!document.isPublic && req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to download this document', 403);
+    if (
+      !document.isPublic &&
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to download this document", 403);
     }
 
     let s3Key = document.s3Key;
-    
+
     // Get specific version if requested
     if (version && parseInt(version) !== document.version) {
-      const versionData = document.versionHistory?.find(v => v.version === parseInt(version));
+      const versionData = document.versionHistory?.find(
+        (v) => v.version === parseInt(version)
+      );
       if (!versionData) {
-        throw new AppError('Version not found', 404);
+        throw new AppError("Version not found", 404);
       }
       s3Key = versionData.s3Key;
     }
 
     // Generate signed URL for download
     const signedUrl = await getSignedUrl(s3Key, 300, {
-      ResponseContentDisposition: `attachment; filename="${document.originalName}"`
+      ResponseContentDisposition: `attachment; filename="${document.originalName}"`,
     });
 
     // Increment download count
-    await document.increment('downloadCount');
+    await document.increment("downloadCount");
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENT_DOWNLOADED',
-      resource: 'Document',
+      action: "DOCUMENT_DOWNLOADED",
+      resource: "Document",
       resourceId: document.id,
       details: { version: version || document.version },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Download URL generated', 200, { 
+    return successResponse(res, "Download URL generated", 200, {
       downloadUrl: signedUrl,
-      fileName: document.originalName
+      fileName: document.originalName,
     });
   } catch (err) {
     next(err);
@@ -442,29 +508,32 @@ const shareDocument = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
-    const { 
+    const {
       expiresIn = 7, // days
       password,
       maxDownloads,
-      recipientEmails
+      recipientEmails,
     } = req.body;
 
     const document = await Document.findByPk(id);
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to share this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to share this document", 403);
     }
 
     // Generate share token
-    const shareToken = crypto.randomBytes(32).toString('hex');
+    const shareToken = crypto.randomBytes(32).toString("hex");
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + expiresIn);
 
@@ -477,7 +546,7 @@ const shareDocument = async (req, res, next) => {
       downloadCount: 0,
       recipientEmails,
       createdBy: req.user.id,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     const shareLinks = document.shareLinks || [];
@@ -497,18 +566,18 @@ const shareDocument = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENT_SHARED',
-      resource: 'Document',
+      action: "DOCUMENT_SHARED",
+      resource: "Document",
       resourceId: document.id,
       details: { expiresIn, recipientCount: recipientEmails?.length || 0 },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Share link generated', 200, {
+    return successResponse(res, "Share link generated", 200, {
       shareUrl,
       expiryDate,
-      maxDownloads
+      maxDownloads,
     });
   } catch (err) {
     next(err);
@@ -528,46 +597,49 @@ const accessSharedDocument = async (req, res, next) => {
     const documents = await Document.findAll({
       where: {
         shareLinks: {
-          [Op.contains]: [{ token }]
-        }
-      }
+          [Op.contains]: [{ token }],
+        },
+      },
     });
 
     if (documents.length === 0) {
-      throw new AppError('Shared link not found or expired', 404);
+      throw new AppError("Shared link not found or expired", 404);
     }
 
     const document = documents[0];
-    const shareConfig = document.shareLinks.find(s => s.token === token);
+    const shareConfig = document.shareLinks.find((s) => s.token === token);
 
     // Check expiry
     if (new Date(shareConfig.expiryDate) < new Date()) {
-      throw new AppError('Share link has expired', 410);
+      throw new AppError("Share link has expired", 410);
     }
 
     // Check max downloads
-    if (shareConfig.maxDownloads && shareConfig.downloadCount >= shareConfig.maxDownloads) {
-      throw new AppError('Maximum download limit reached', 403);
+    if (
+      shareConfig.maxDownloads &&
+      shareConfig.downloadCount >= shareConfig.maxDownloads
+    ) {
+      throw new AppError("Maximum download limit reached", 403);
     }
 
     // Check password if required
     if (shareConfig.password) {
       if (!password) {
-        return error(res, 'Password required', 401, { passwordRequired: true });
+        return errorResponse(res, "Password required", 401, { passwordRequired: true });
       }
       const isValid = await bcryptCompare(password, shareConfig.password);
       if (!isValid) {
-        throw new AppError('Invalid password', 401);
+        throw new AppError("Invalid password", 401);
       }
     }
 
     // Generate download URL
     const signedUrl = await getSignedUrl(document.s3Key, 300, {
-      ResponseContentDisposition: `attachment; filename="${document.originalName}"`
+      ResponseContentDisposition: `attachment; filename="${document.originalName}"`,
     });
 
     // Update download count
-    const updatedShareLinks = document.shareLinks.map(s => {
+    const updatedShareLinks = document.shareLinks.map((s) => {
       if (s.token === token) {
         return { ...s, downloadCount: (s.downloadCount || 0) + 1 };
       }
@@ -575,14 +647,14 @@ const accessSharedDocument = async (req, res, next) => {
     });
     await document.update({ shareLinks: updatedShareLinks });
 
-    return success(res, 'Document access granted', 200, {
+    return successResponse(res, "Document access granted", 200, {
       document: {
         name: document.name,
         fileName: document.originalName,
         size: document.size,
-        mimeType: document.mimeType
+        mimeType: document.mimeType,
       },
-      downloadUrl: signedUrl
+      downloadUrl: signedUrl,
     });
   } catch (err) {
     next(err);
@@ -600,18 +672,21 @@ const deleteDocument = async (req, res, next) => {
 
     const document = await Document.findByPk(id);
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to delete this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to delete this document", 403);
     }
 
-    if (permanent === 'true') {
+    if (permanent === "true") {
       // Delete from S3
       await deleteFromS3(document.s3Key);
-      
+
       // Delete version history files
       if (document.versionHistory) {
         for (const version of document.versionHistory) {
@@ -622,27 +697,33 @@ const deleteDocument = async (req, res, next) => {
       // Permanently delete record
       await document.destroy();
 
-      logger.info('Document permanently deleted', { documentId: id, userId: req.user.id });
+      logger.info("Document permanently deleted", {
+        documentId: id,
+        userId: req.user.id,
+      });
     } else {
       // Soft delete
-      await document.update({ 
-        status: 'deleted',
+      await document.update({
+        status: "deleted",
         deletedAt: new Date(),
-        deletedBy: req.user.id
+        deletedBy: req.user.id,
       });
     }
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: permanent === 'true' ? 'DOCUMENT_PERMANENTLY_DELETED' : 'DOCUMENT_DELETED',
-      resource: 'Document',
+      action:
+        permanent === "true"
+          ? "DOCUMENT_PERMANENTLY_DELETED"
+          : "DOCUMENT_DELETED",
+      resource: "Document",
       resourceId: id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Document deleted successfully', 200);
+    return successResponse(res, "Document deleted successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -658,35 +739,40 @@ const restoreDocument = async (req, res, next) => {
 
     const document = await Document.findByPk(id);
     if (!document) {
-      throw new AppError('Document not found', 404);
+      throw new AppError("Document not found", 404);
     }
 
-    if (document.status !== 'deleted') {
-      throw new AppError('Document is not deleted', 400);
+    if (document.status !== "deleted") {
+      throw new AppError("Document is not deleted", 400);
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && document.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to restore this document', 403);
+    if (
+      req.user.role !== "admin" &&
+      document.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to restore this document", 403);
     }
 
     await document.update({
-      status: 'active',
+      status: "active",
       deletedAt: null,
-      deletedBy: null
+      deletedBy: null,
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENT_RESTORED',
-      resource: 'Document',
+      action: "DOCUMENT_RESTORED",
+      resource: "Document",
       resourceId: document.id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Document restored successfully', 200, { document });
+    return successResponse(res, "Document restored successfully", 200, {
+      document,
+    });
   } catch (err) {
     next(err);
   }
@@ -707,7 +793,7 @@ const getEntityDocuments = async (req, res, next) => {
     const where = {
       entityType,
       entityId,
-      status: 'active'
+      status: "active",
     };
 
     if (category) where.category = category;
@@ -716,12 +802,18 @@ const getEntityDocuments = async (req, res, next) => {
     const documents = await Document.findAll({
       where,
       include: [
-        { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }
+        {
+          model: User,
+          as: "uploadedBy",
+          attributes: ["id", "firstName", "lastName"],
+        },
       ],
-      order: [['createdAt', 'DESC']]
+      order: [["createdAt", "DESC"]],
     });
 
-    return success(res, 'Entity documents retrieved', 200, { documents });
+    return successResponse(res, "Entity documents retrieved", 200, {
+      documents,
+    });
   } catch (err) {
     next(err);
   }
@@ -735,16 +827,20 @@ const bulkDeleteDocuments = async (req, res, next) => {
   try {
     const { documentIds, permanent = false } = req.body;
 
-    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
-      throw new AppError('Document IDs required', 400);
+    if (
+      !documentIds ||
+      !Array.isArray(documentIds) ||
+      documentIds.length === 0
+    ) {
+      throw new AppError("Document IDs required", 400);
     }
 
     const where = {
-      id: { [Op.in]: documentIds }
+      id: { [Op.in]: documentIds },
     };
 
     // Non-admin can only delete their company's documents
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== "admin") {
       where.companyId = req.user.companyId;
     }
 
@@ -759,25 +855,31 @@ const bulkDeleteDocuments = async (req, res, next) => {
           }
         }
       }
-      await Document.destroy({ where: { id: { [Op.in]: documents.map(d => d.id) } } });
+      await Document.destroy({
+        where: { id: { [Op.in]: documents.map((d) => d.id) } },
+      });
     } else {
       await Document.update(
-        { status: 'deleted', deletedAt: new Date(), deletedBy: req.user.id },
-        { where: { id: { [Op.in]: documents.map(d => d.id) } } }
+        { status: "deleted", deletedAt: new Date(), deletedBy: req.user.id },
+        { where: { id: { [Op.in]: documents.map((d) => d.id) } } }
       );
     }
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DOCUMENTS_BULK_DELETED',
-      resource: 'Document',
+      action: "DOCUMENTS_BULK_DELETED",
+      resource: "Document",
       details: { count: documents.length, permanent },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, `${documents.length} documents deleted successfully`, 200);
+    return successResponse(
+      res,
+      `${documents.length} documents deleted successfully`,
+      200
+    );
   } catch (err) {
     next(err);
   }
@@ -786,26 +888,27 @@ const bulkDeleteDocuments = async (req, res, next) => {
 // Helper functions
 const validateEntity = async (entityType, entityId, user) => {
   let entity;
-  const companyCheck = user.role !== 'admin' ? { companyId: user.companyId } : {};
+  const companyCheck =
+    user.role !== "admin" ? { companyId: user.companyId } : {};
 
   switch (entityType) {
-    case 'shipment':
+    case "shipment":
       entity = await Shipment.findByPk(entityId, { where: companyCheck });
       break;
-    case 'vehicle':
+    case "vehicle":
       entity = await Vehicle.findByPk(entityId, { where: companyCheck });
       break;
-    case 'driver':
+    case "driver":
       entity = await Driver.findByPk(entityId, { where: companyCheck });
       break;
-    case 'company':
+    case "company":
       entity = await Company.findByPk(entityId);
       break;
-    case 'user':
+    case "user":
       entity = await User.findByPk(entityId);
       break;
     default:
-      throw new AppError('Invalid entity type', 400);
+      throw new AppError("Invalid entity type", 400);
   }
 
   if (!entity) {
@@ -816,20 +919,22 @@ const validateEntity = async (entityType, entityId, user) => {
 };
 
 const detectDocumentType = (mimeType) => {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType === 'application/pdf') return 'pdf';
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'spreadsheet';
-  if (mimeType.includes('document') || mimeType.includes('word')) return 'document';
-  return 'other';
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel"))
+    return "spreadsheet";
+  if (mimeType.includes("document") || mimeType.includes("word"))
+    return "document";
+  return "other";
 };
 
 const bcryptHash = async (password) => {
-  const bcrypt = require('bcrypt');
+  const bcrypt = require("bcrypt");
   return bcrypt.hash(password, 10);
 };
 
 const bcryptCompare = async (password, hash) => {
-  const bcrypt = require('bcrypt');
+  const bcrypt = require("bcrypt");
   return bcrypt.compare(password, hash);
 };
 
@@ -846,5 +951,5 @@ module.exports = {
   deleteDocument,
   restoreDocument,
   getEntityDocuments,
-  bulkDeleteDocuments
+  bulkDeleteDocuments,
 };

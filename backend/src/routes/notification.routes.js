@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const notificationController = require('../controllers/notification.controller');
-const { notification: notificationValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const notificationController = require("../controllers/notification.controller");
+const { notification: notificationValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -16,10 +16,9 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-    '/',
-    notificationValidator.getNotificationsValidation,
-    validate,
-    notificationController.getNotifications
+  "/",
+  validate(notificationValidator.getNotificationsValidation),
+  notificationController.getNotifications
 );
 
 /**
@@ -28,10 +27,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/unread-count',
-    notificationValidator.getCountValidation,
-    validate,
-    notificationController.getUnreadCount
+  "/unread-count",
+  validate(notificationValidator.getCountValidation),
+  notificationController.getUnreadCount
 );
 
 /**
@@ -40,10 +38,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/preferences',
-    notificationValidator.getPreferencesValidation,
-    validate,
-    notificationController.getPreferences
+  "/preferences",
+  validate(notificationValidator.getPreferencesValidation),
+  notificationController.getPreferences
 );
 
 /**
@@ -52,10 +49,9 @@ router.get(
  * @access  Private
  */
 router.put(
-    '/preferences',
-    notificationValidator.updatePreferencesValidation,
-    validate,
-    notificationController.updatePreferences
+  "/preferences",
+  validate(notificationValidator.updatePreferencesValidation),
+  notificationController.updatePreferences
 );
 
 /**
@@ -63,10 +59,7 @@ router.put(
  * @desc    Get push subscriptions for current user
  * @access  Private
  */
-router.get(
-    '/push/subscriptions',
-    notificationController.getPushSubscriptions
-);
+router.get("/push/subscriptions", notificationController.getPushSubscriptions);
 
 /**
  * @route   POST /api/notifications/push/subscribe
@@ -74,10 +67,9 @@ router.get(
  * @access  Private
  */
 router.post(
-    '/push/subscribe',
-    notificationValidator.subscribePushValidation,
-    validate,
-    notificationController.subscribePush
+  "/push/subscribe",
+  validate(notificationValidator.subscribePushValidation),
+  notificationController.subscribePush
 );
 
 /**
@@ -86,10 +78,9 @@ router.post(
  * @access  Private
  */
 router.post(
-    '/push/unsubscribe',
-    notificationValidator.unsubscribePushValidation,
-    validate,
-    notificationController.unsubscribePush
+  "/push/unsubscribe",
+  validate(notificationValidator.unsubscribePushValidation),
+  notificationController.unsubscribePush
 );
 
 /**
@@ -98,10 +89,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/:id',
-    notificationValidator.markAsReadValidation,
-    validate,
-    notificationController.getNotificationById
+  "/:id",
+  validate(notificationValidator.markAsReadValidation),
+  notificationController.getNotificationById
 );
 
 /**
@@ -110,10 +100,9 @@ router.get(
  * @access  Private
  */
 router.patch(
-    '/:id/read',
-    notificationValidator.markAsReadValidation,
-    validate,
-    notificationController.markAsRead
+  "/:id/read",
+  validate(notificationValidator.markAsReadValidation),
+  notificationController.markAsRead
 );
 
 /**
@@ -122,10 +111,9 @@ router.patch(
  * @access  Private
  */
 router.patch(
-    '/read-all',
-    notificationValidator.markAllAsReadValidation,
-    validate,
-    notificationController.markAllAsRead
+  "/read-all",
+  validate(notificationValidator.markAllAsReadValidation),
+  notificationController.markAllAsRead
 );
 
 /**
@@ -133,10 +121,7 @@ router.patch(
  * @desc    Delete all notifications
  * @access  Private
  */
-router.delete(
-    '/all',
-    notificationController.deleteAllNotifications
-);
+router.delete("/all", notificationController.deleteAllNotifications);
 
 /**
  * @route   DELETE /api/notifications/:id
@@ -144,10 +129,9 @@ router.delete(
  * @access  Private
  */
 router.delete(
-    '/:id',
-    notificationValidator.deleteNotificationValidation,
-    validate,
-    notificationController.deleteNotification
+  "/:id",
+  validate(notificationValidator.deleteNotificationValidation),
+  notificationController.deleteNotification
 );
 
 /**
@@ -156,11 +140,11 @@ router.delete(
  * @access  Private (Admin)
  */
 router.post(
-    '/send',
-    authorize(['admin']),
-    notificationValidator.createNotificationValidation,
-    validate,
-    notificationController.sendNotification
+  "/send",
+  authorize(["admin"]),
+  notificationValidator.createNotificationValidation,
+  validate,
+  notificationController.sendNotification
 );
 
 /**
@@ -169,11 +153,11 @@ router.post(
  * @access  Private (Admin)
  */
 router.post(
-    '/send-bulk',
-    authorize(['admin']),
-    notificationValidator.sendBulkNotificationValidation,
-    validate,
-    notificationController.sendBulkNotification
+  "/send-bulk",
+  authorize(["admin"]),
+  notificationValidator.sendBulkNotificationValidation,
+  validate,
+  notificationController.sendBulkNotification
 );
 
 module.exports = router;

@@ -1,10 +1,13 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const authController = require('../controllers/auth.controller');
-const { authValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { authLimiter, strictLimiter } = require('../middleware/rateLimit.middleware');
+const authController = require("../controllers/auth.controller");
+const { authValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const {
+  authLimiter,
+  strictLimiter,
+} = require("../middleware/rateLimit.middleware");
 
 /**
  * @route   POST /api/auth/register
@@ -12,10 +15,9 @@ const { authLimiter, strictLimiter } = require('../middleware/rateLimit.middlewa
  * @access  Public
  */
 router.post(
-  '/register',
+  "/register",
   authLimiter,
-  authValidator.register,
-  validate,
+  validate(authValidator.register),
   authController.register
 );
 
@@ -25,10 +27,9 @@ router.post(
  * @access  Public
  */
 router.post(
-  '/login',
+  "/login",
   authLimiter,
-  authValidator.login,
-  validate,
+  validate(authValidator.login),
   authController.login
 );
 
@@ -37,11 +38,7 @@ router.post(
  * @desc    Logout user and invalidate refresh token
  * @access  Private
  */
-router.post(
-  '/logout',
-  authenticate,
-  authController.logout
-);
+router.post("/logout", authenticate, authController.logout);
 
 /**
  * @route   POST /api/auth/refresh
@@ -49,10 +46,9 @@ router.post(
  * @access  Public
  */
 router.post(
-  '/refresh',
+  "/refresh",
   authLimiter,
-  authValidator.refreshToken,
-  validate,
+  validate(authValidator.refreshToken),
   authController.refreshAccessToken
 );
 
@@ -62,10 +58,9 @@ router.post(
  * @access  Public
  */
 router.post(
-  '/forgot-password',
+  "/forgot-password",
   strictLimiter,
-  authValidator.forgotPassword,
-  validate,
+  validate(authValidator.forgotPassword),
   authController.forgotPassword
 );
 
@@ -75,10 +70,9 @@ router.post(
  * @access  Public
  */
 router.post(
-  '/reset-password',
+  "/reset-password",
   strictLimiter,
-  authValidator.resetPassword,
-  validate,
+  validate(authValidator.resetPassword),
   authController.resetPassword
 );
 
@@ -88,9 +82,8 @@ router.post(
  * @access  Public
  */
 router.post(
-  '/verify-email',
-  authValidator.verifyEmail,
-  validate,
+  "/verify-email",
+  validate(authValidator.verifyEmail),
   authController.verifyEmail
 );
 
@@ -100,10 +93,9 @@ router.post(
  * @access  Public
  */
 router.post(
-  '/resend-verification',
+  "/resend-verification",
   strictLimiter,
-  authValidator.resendVerification,
-  validate,
+  validate(authValidator.resendVerification),
   authController.resendVerification
 );
 
@@ -113,10 +105,9 @@ router.post(
  * @access  Private
  */
 router.post(
-  '/change-password',
+  "/change-password",
   authenticate,
-  authValidator.changePassword,
-  validate,
+  validate(authValidator.changePassword),
   authController.changePassword
 );
 
@@ -125,10 +116,6 @@ router.post(
  * @desc    Get current authenticated user
  * @access  Private
  */
-router.get(
-  '/me',
-  authenticate,
-  authController.getMe
-);
+router.get("/me", authenticate, authController.getMe);
 
 module.exports = router;

@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const pricingController = require('../controllers/pricing.controller');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
-const { body, param, query } = require('express-validator');
+const pricingController = require("../controllers/pricing.controller");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
+const { body, param, query } = require("express-validator");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -16,16 +16,27 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-    '/rules',
-    [
-        query('companyId').optional().isUUID().withMessage('Invalid company ID'),
-        query('vehicleType').optional().isString().withMessage('Invalid vehicle type'),
-        query('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
-        query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive'),
-        query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
-    ],
-    validate,
-    pricingController.getPricingRules
+  "/rules",
+  validate([
+    query("companyId").optional().isUUID().withMessage("Invalid company ID"),
+    query("vehicleType")
+      .optional()
+      .isString()
+      .withMessage("Invalid vehicle type"),
+    query("isActive")
+      .optional()
+      .isBoolean()
+      .withMessage("isActive must be boolean"),
+    query("page")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("Page must be positive"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be between 1 and 100"),
+  ]),
+  pricingController.getPricingRules
 );
 
 /**
@@ -34,12 +45,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/rules/:id',
-    [
-        param('id').isUUID().withMessage('Invalid pricing rule ID')
-    ],
-    validate,
-    pricingController.getPricingRuleById
+  "/rules/:id",
+  validate([param("id").isUUID().withMessage("Invalid pricing rule ID")]),
+  pricingController.getPricingRuleById
 );
 
 /**
@@ -48,21 +56,40 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/rules',
-    authorize(['admin', 'manager']),
-    [
-        body('companyId').notEmpty().isUUID().withMessage('Invalid company ID'),
-        body('name').trim().notEmpty().withMessage('Name is required'),
-        body('ruleType').isIn(['base', 'distance', 'weight', 'volume', 'time', 'zone', 'custom']).withMessage('Invalid rule type'),
-        body('basePrice').optional().isFloat({ min: 0 }).withMessage('Base price must be positive'),
-        body('pricePerUnit').optional().isFloat({ min: 0 }).withMessage('Price per unit must be positive'),
-        body('minCharge').optional().isFloat({ min: 0 }).withMessage('Min charge must be positive'),
-        body('maxCharge').optional().isFloat({ min: 0 }).withMessage('Max charge must be positive'),
-        body('vehicleTypes').optional().isArray().withMessage('Vehicle types must be an array'),
-        body('isActive').optional().isBoolean().withMessage('isActive must be boolean')
-    ],
-    validate,
-    pricingController.createPricingRule
+  "/rules",
+  authorize(["admin", "manager"]),
+  validate([
+    body("companyId").notEmpty().isUUID().withMessage("Invalid company ID"),
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("ruleType")
+      .isIn(["base", "distance", "weight", "volume", "time", "zone", "custom"])
+      .withMessage("Invalid rule type"),
+    body("basePrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Base price must be positive"),
+    body("pricePerUnit")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Price per unit must be positive"),
+    body("minCharge")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Min charge must be positive"),
+    body("maxCharge")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Max charge must be positive"),
+    body("vehicleTypes")
+      .optional()
+      .isArray()
+      .withMessage("Vehicle types must be an array"),
+    body("isActive")
+      .optional()
+      .isBoolean()
+      .withMessage("isActive must be boolean"),
+  ]),
+  pricingController.createPricingRule
 );
 
 /**
@@ -71,17 +98,29 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-    '/rules/:id',
-    authorize(['admin', 'manager']),
-    [
-        param('id').isUUID().withMessage('Invalid pricing rule ID'),
-        body('name').optional().trim().isLength({ max: 200 }).withMessage('Name too long'),
-        body('basePrice').optional().isFloat({ min: 0 }).withMessage('Base price must be positive'),
-        body('pricePerUnit').optional().isFloat({ min: 0 }).withMessage('Price per unit must be positive'),
-        body('isActive').optional().isBoolean().withMessage('isActive must be boolean')
-    ],
-    validate,
-    pricingController.updatePricingRule
+  "/rules/:id",
+  authorize(["admin", "manager"]),
+  validate([
+    param("id").isUUID().withMessage("Invalid pricing rule ID"),
+    body("name")
+      .optional()
+      .trim()
+      .isLength({ max: 200 })
+      .withMessage("Name too long"),
+    body("basePrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Base price must be positive"),
+    body("pricePerUnit")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Price per unit must be positive"),
+    body("isActive")
+      .optional()
+      .isBoolean()
+      .withMessage("isActive must be boolean"),
+  ]),
+  pricingController.updatePricingRule
 );
 
 /**
@@ -90,13 +129,10 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-    '/rules/:id',
-    authorize(['admin']),
-    [
-        param('id').isUUID().withMessage('Invalid pricing rule ID')
-    ],
-    validate,
-    pricingController.deletePricingRule
+  "/rules/:id",
+  authorize(["admin"]),
+  validate([param("id").isUUID().withMessage("Invalid pricing rule ID")]),
+  pricingController.deletePricingRule
 );
 
 /**
@@ -105,12 +141,11 @@ router.delete(
  * @access  Private
  */
 router.get(
-    '/zones',
-    [
-        query('companyId').optional().isUUID().withMessage('Invalid company ID')
-    ],
-    validate,
-    pricingController.getPricingZones
+  "/zones",
+  validate([
+    query("companyId").optional().isUUID().withMessage("Invalid company ID"),
+  ]),
+  pricingController.getPricingZones
 );
 
 /**
@@ -119,17 +154,24 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/zones',
-    authorize(['admin', 'manager']),
-    [
-        body('companyId').notEmpty().isUUID().withMessage('Invalid company ID'),
-        body('name').trim().notEmpty().withMessage('Name is required'),
-        body('zoneType').isIn(['city', 'state', 'region', 'country', 'custom']).withMessage('Invalid zone type'),
-        body('boundaries').optional().isObject().withMessage('Boundaries must be an object'),
-        body('priceMultiplier').optional().isFloat({ min: 0 }).withMessage('Price multiplier must be positive')
-    ],
-    validate,
-    pricingController.createPricingZone
+  "/zones",
+  authorize(["admin", "manager"]),
+  validate([
+    body("companyId").notEmpty().isUUID().withMessage("Invalid company ID"),
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("zoneType")
+      .isIn(["city", "state", "region", "country", "custom"])
+      .withMessage("Invalid zone type"),
+    body("boundaries")
+      .optional()
+      .isObject()
+      .withMessage("Boundaries must be an object"),
+    body("priceMultiplier")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Price multiplier must be positive"),
+  ]),
+  pricingController.createPricingZone
 );
 
 /**
@@ -138,22 +180,44 @@ router.post(
  * @access  Private
  */
 router.post(
-    '/calculate',
-    [
-        body('companyId').optional().isUUID().withMessage('Invalid company ID'),
-        body('origin').notEmpty().isObject().withMessage('Origin is required'),
-        body('origin.latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid origin latitude'),
-        body('origin.longitude').isFloat({ min: -180, max: 180 }).withMessage('Invalid origin longitude'),
-        body('destination').notEmpty().isObject().withMessage('Destination is required'),
-        body('destination.latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid destination latitude'),
-        body('destination.longitude').isFloat({ min: -180, max: 180 }).withMessage('Invalid destination longitude'),
-        body('weight').optional().isFloat({ min: 0 }).withMessage('Weight must be positive'),
-        body('volume').optional().isFloat({ min: 0 }).withMessage('Volume must be positive'),
-        body('vehicleType').optional().isString().withMessage('Invalid vehicle type'),
-        body('serviceType').optional().isIn(['standard', 'express', 'same_day', 'overnight']).withMessage('Invalid service type')
-    ],
-    validate,
-    pricingController.calculateQuote
+  "/calculate",
+  validate([
+    body("companyId").optional().isUUID().withMessage("Invalid company ID"),
+    body("origin").notEmpty().isObject().withMessage("Origin is required"),
+    body("origin.latitude")
+      .isFloat({ min: -90, max: 90 })
+      .withMessage("Invalid origin latitude"),
+    body("origin.longitude")
+      .isFloat({ min: -180, max: 180 })
+      .withMessage("Invalid origin longitude"),
+    body("destination")
+      .notEmpty()
+      .isObject()
+      .withMessage("Destination is required"),
+    body("destination.latitude")
+      .isFloat({ min: -90, max: 90 })
+      .withMessage("Invalid destination latitude"),
+    body("destination.longitude")
+      .isFloat({ min: -180, max: 180 })
+      .withMessage("Invalid destination longitude"),
+    body("weight")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Weight must be positive"),
+    body("volume")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Volume must be positive"),
+    body("vehicleType")
+      .optional()
+      .isString()
+      .withMessage("Invalid vehicle type"),
+    body("serviceType")
+      .optional()
+      .isIn(["standard", "express", "same_day", "overnight"])
+      .withMessage("Invalid service type"),
+  ]),
+  pricingController.calculateQuote
 );
 
 /**
@@ -162,15 +226,23 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/quotes',
-    [
-        query('companyId').optional().isUUID().withMessage('Invalid company ID'),
-        query('status').optional().isIn(['pending', 'accepted', 'rejected', 'expired']).withMessage('Invalid status'),
-        query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive'),
-        query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
-    ],
-    validate,
-    pricingController.getQuotes
+  "/quotes",
+  validate([
+    query("companyId").optional().isUUID().withMessage("Invalid company ID"),
+    query("status")
+      .optional()
+      .isIn(["pending", "accepted", "rejected", "expired"])
+      .withMessage("Invalid status"),
+    query("page")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("Page must be positive"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be between 1 and 100"),
+  ]),
+  pricingController.getQuotes
 );
 
 /**
@@ -179,15 +251,20 @@ router.get(
  * @access  Private
  */
 router.post(
-    '/quotes',
-    [
-        body('companyId').notEmpty().isUUID().withMessage('Invalid company ID'),
-        body('customerId').optional().isUUID().withMessage('Invalid customer ID'),
-        body('quoteData').notEmpty().isObject().withMessage('Quote data is required'),
-        body('validUntil').optional().isISO8601().withMessage('Invalid valid until date')
-    ],
-    validate,
-    pricingController.saveQuote
+  "/quotes",
+  validate([
+    body("companyId").notEmpty().isUUID().withMessage("Invalid company ID"),
+    body("customerId").optional().isUUID().withMessage("Invalid customer ID"),
+    body("quoteData")
+      .notEmpty()
+      .isObject()
+      .withMessage("Quote data is required"),
+    body("validUntil")
+      .optional()
+      .isISO8601()
+      .withMessage("Invalid valid until date"),
+  ]),
+  pricingController.saveQuote
 );
 
 /**
@@ -196,12 +273,10 @@ router.post(
  * @access  Private
  */
 router.post(
-    '/quotes/:id/convert',
-    [
-        param('id').isUUID().withMessage('Invalid quote ID')
-    ],
-    validate,
-    pricingController.convertQuoteToShipment
+  "/quotes/:id/convert",
+  [param("id").isUUID().withMessage("Invalid quote ID")],
+  validate,
+  pricingController.convertQuoteToShipment
 );
 
 /**
@@ -209,9 +284,6 @@ router.post(
  * @desc    Get fuel surcharge rates
  * @access  Private
  */
-router.get(
-    '/fuel-surcharge',
-    pricingController.getFuelSurcharge
-);
+router.get("/fuel-surcharge", pricingController.getFuelSurcharge);
 
 module.exports = router;

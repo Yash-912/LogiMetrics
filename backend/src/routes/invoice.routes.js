@@ -1,12 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const invoiceController = require('../controllers/invoice.controller');
-const { payment: paymentValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
-const { body, param } = require('express-validator');
+const invoiceController = require("../controllers/invoice.controller");
+const { payment: paymentValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
+const { body, param } = require("express-validator");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -17,10 +17,9 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-    '/',
-    paymentValidator.listInvoicesValidation,
-    validate,
-    invoiceController.getInvoices
+  "/",
+  validate(paymentValidator.listInvoicesValidation),
+  invoiceController.getInvoices
 );
 
 /**
@@ -29,10 +28,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/:id',
-    paymentValidator.getInvoiceValidation,
-    validate,
-    invoiceController.getInvoiceById
+  "/:id",
+  validate(paymentValidator.getInvoiceValidation),
+  invoiceController.getInvoiceById
 );
 
 /**
@@ -41,12 +39,14 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/number/:invoiceNumber',
-    [
-        param('invoiceNumber').trim().notEmpty().withMessage('Invoice number is required')
-    ],
-    validate,
-    invoiceController.getInvoiceByNumber
+  "/number/:invoiceNumber",
+  validate([
+    param("invoiceNumber")
+      .trim()
+      .notEmpty()
+      .withMessage("Invoice number is required"),
+  ]),
+  invoiceController.getInvoiceByNumber
 );
 
 /**
@@ -55,11 +55,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/',
-    authorize(['admin', 'manager']),
-    paymentValidator.createInvoiceValidation,
-    validate,
-    invoiceController.createInvoice
+  "/",
+  authorize(["admin", "manager"]),
+  validate(paymentValidator.createInvoiceValidation),
+  invoiceController.createInvoice
 );
 
 /**
@@ -68,11 +67,10 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-    '/:id',
-    authorize(['admin', 'manager']),
-    paymentValidator.updateInvoiceValidation,
-    validate,
-    invoiceController.updateInvoice
+  "/:id",
+  authorize(["admin", "manager"]),
+  validate(paymentValidator.updateInvoiceValidation),
+  invoiceController.updateInvoice
 );
 
 /**
@@ -81,11 +79,10 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-    '/:id',
-    authorize(['admin']),
-    paymentValidator.deleteInvoiceValidation,
-    validate,
-    invoiceController.deleteInvoice
+  "/:id",
+  authorize(["admin"]),
+  validate(paymentValidator.deleteInvoiceValidation),
+  invoiceController.deleteInvoice
 );
 
 /**
@@ -94,14 +91,15 @@ router.delete(
  * @access  Private (Admin, Manager)
  */
 router.patch(
-    '/:id/status',
-    authorize(['admin', 'manager']),
-    [
-        param('id').isUUID().withMessage('Invalid invoice ID'),
-        body('status').isIn(['draft', 'sent', 'paid', 'overdue', 'cancelled', 'void']).withMessage('Invalid status')
-    ],
-    validate,
-    invoiceController.updateInvoiceStatus
+  "/:id/status",
+  authorize(["admin", "manager"]),
+  validate([
+    param("id").isUUID().withMessage("Invalid invoice ID"),
+    body("status")
+      .isIn(["draft", "sent", "paid", "overdue", "cancelled", "void"])
+      .withMessage("Invalid status"),
+  ]),
+  invoiceController.updateInvoiceStatus
 );
 
 /**
@@ -110,11 +108,10 @@ router.patch(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/:id/send',
-    authorize(['admin', 'manager']),
-    paymentValidator.sendInvoiceValidation,
-    validate,
-    invoiceController.sendInvoice
+  "/:id/send",
+  authorize(["admin", "manager"]),
+  validate(paymentValidator.sendInvoiceValidation),
+  invoiceController.sendInvoice
 );
 
 /**
@@ -123,10 +120,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/:id/pdf',
-    paymentValidator.getInvoiceValidation,
-    validate,
-    invoiceController.downloadInvoicePDF
+  "/:id/pdf",
+  validate(paymentValidator.getInvoiceValidation),
+  invoiceController.downloadInvoicePDF
 );
 
 /**
@@ -135,10 +131,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/:id/preview',
-    paymentValidator.getInvoiceValidation,
-    validate,
-    invoiceController.previewInvoicePDF
+  "/:id/preview",
+  validate(paymentValidator.getInvoiceValidation),
+  invoiceController.previewInvoicePDF
 );
 
 /**
@@ -147,10 +142,10 @@ router.get(
  * @access  Private
  */
 router.post(
-    '/:id/view',
-    paymentValidator.getInvoiceValidation,
-    validate,
-    invoiceController.markAsViewed
+  "/:id/view",
+  paymentValidator.getInvoiceValidation,
+  validate,
+  invoiceController.markAsViewed
 );
 
 /**
@@ -159,17 +154,27 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/:id/items',
-    authorize(['admin', 'manager']),
-    [
-        param('id').isUUID().withMessage('Invalid invoice ID'),
-        body('description').trim().notEmpty().withMessage('Description is required'),
-        body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-        body('unitPrice').isFloat({ min: 0 }).withMessage('Unit price must be positive'),
-        body('taxRate').optional().isFloat({ min: 0, max: 100 }).withMessage('Tax rate must be between 0 and 100')
-    ],
-    validate,
-    invoiceController.addLineItem
+  "/:id/items",
+  authorize(["admin", "manager"]),
+  [
+    param("id").isUUID().withMessage("Invalid invoice ID"),
+    body("description")
+      .trim()
+      .notEmpty()
+      .withMessage("Description is required"),
+    body("quantity")
+      .isInt({ min: 1 })
+      .withMessage("Quantity must be at least 1"),
+    body("unitPrice")
+      .isFloat({ min: 0 })
+      .withMessage("Unit price must be positive"),
+    body("taxRate")
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage("Tax rate must be between 0 and 100"),
+  ],
+  validate,
+  invoiceController.addLineItem
 );
 
 /**
@@ -178,14 +183,14 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.delete(
-    '/:id/items/:itemId',
-    authorize(['admin', 'manager']),
-    [
-        param('id').isUUID().withMessage('Invalid invoice ID'),
-        param('itemId').isUUID().withMessage('Invalid item ID')
-    ],
-    validate,
-    invoiceController.removeLineItem
+  "/:id/items/:itemId",
+  authorize(["admin", "manager"]),
+  [
+    param("id").isUUID().withMessage("Invalid invoice ID"),
+    param("itemId").isUUID().withMessage("Invalid item ID"),
+  ],
+  validate,
+  invoiceController.removeLineItem
 );
 
 /**
@@ -194,11 +199,11 @@ router.delete(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/:id/duplicate',
-    authorize(['admin', 'manager']),
-    paymentValidator.getInvoiceValidation,
-    validate,
-    invoiceController.duplicateInvoice
+  "/:id/duplicate",
+  authorize(["admin", "manager"]),
+  paymentValidator.getInvoiceValidation,
+  validate,
+  invoiceController.duplicateInvoice
 );
 
 /**
@@ -207,16 +212,23 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/generate',
-    authorize(['admin', 'manager']),
-    [
-        body('shipmentIds').isArray({ min: 1 }).withMessage('Shipment IDs must be a non-empty array'),
-        body('shipmentIds.*').isUUID().withMessage('Each shipment ID must be a valid UUID'),
-        body('customerId').isUUID().withMessage('Invalid customer ID'),
-        body('dueDate').optional().isISO8601().withMessage('Invalid due date format')
-    ],
-    validate,
-    invoiceController.generateFromShipments
+  "/generate",
+  authorize(["admin", "manager"]),
+  [
+    body("shipmentIds")
+      .isArray({ min: 1 })
+      .withMessage("Shipment IDs must be a non-empty array"),
+    body("shipmentIds.*")
+      .isUUID()
+      .withMessage("Each shipment ID must be a valid UUID"),
+    body("customerId").isUUID().withMessage("Invalid customer ID"),
+    body("dueDate")
+      .optional()
+      .isISO8601()
+      .withMessage("Invalid due date format"),
+  ],
+  validate,
+  invoiceController.generateFromShipments
 );
 
 module.exports = router;

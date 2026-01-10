@@ -1,12 +1,24 @@
-const { validationResult } = require('express-validator');
-const { Shipment, Vehicle, Driver, Route } = require('../models/postgres');
-const { LiveTracking, VehicleTelemetry, ShipmentEvent, AuditLog } = require('../models/mongodb');
-const { success, error, paginated } = require('../utils/response.util');
-const { AppError } = require('../middleware/error.middleware');
-const { redisClient } = require('../config/redis');
-const { calculateDistance, isWithinGeofence } = require('../utils/calculations.util');
-const { emitToRoom, emitToUser } = require('../config/socket');
-const logger = require('../utils/logger.util');
+const { validationResult } = require("express-validator");
+const { Shipment, Vehicle, Driver, Route } = require("../models/mongodb");
+const {
+  LiveTracking,
+  VehicleTelemetry,
+  ShipmentEvent,
+  AuditLog,
+} = require("../models/mongodb");
+const {
+  successResponse,
+  errorResponse,
+  paginated,
+} = require("../utils/response.util");
+const { AppError } = require("../middleware/error.middleware");
+const { redisClient } = require("../config/redis");
+const {
+  calculateDistance,
+  isWithinGeofence,
+} = require("../utils/calculations.util");
+const { emitToRoom, emitToUser } = require("../config/socket");
+const logger = require("../utils/logger.util");
 
 /**
  * Update vehicle location (from driver app or GPS device)
@@ -16,7 +28,7 @@ const updateLocation = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -28,13 +40,13 @@ const updateLocation = async (req, res, next) => {
       speed,
       heading,
       accuracy,
-      timestamp
+      timestamp,
     } = req.body;
 
     // Validate vehicle exists
     const vehicle = await Vehicle.findByPk(vehicleId);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const locationData = {
@@ -47,7 +59,7 @@ const updateLocation = async (req, res, next) => {
       heading,
       accuracy,
       timestamp: timestamp || new Date(),
-      recordedAt: new Date()
+      recordedAt: new Date(),
     };
 
     // Store in MongoDB for historical data
@@ -55,28 +67,30 @@ const updateLocation = async (req, res, next) => {
 
     // Update real-time cache in Redis
     const cacheKey = `vehicle:${vehicleId}:location`;
-    await redisClient.set(cacheKey, JSON.stringify(locationData), 'EX', 300); // 5 min expiry
+    await redisClient.set(cacheKey, JSON.stringify(locationData), "EX", 300); // 5 min expiry
 
     // If shipment is associated, update shipment location cache
     if (shipmentId) {
       await redisClient.set(
         `shipment:${shipmentId}:location`,
         JSON.stringify(locationData),
-        'EX',
+        "EX",
         300
       );
 
       // Emit real-time update via WebSocket
-      emitToRoom(`shipment:${shipmentId}`, 'location_update', locationData);
+      emitToRoom(`shipment:${shipmentId}`, "location_update", locationData);
     }
 
     // Emit to vehicle tracking room
-    emitToRoom(`vehicle:${vehicleId}`, 'location_update', locationData);
+    emitToRoom(`vehicle:${vehicleId}`, "location_update", locationData);
 
     // Check geofences
     await checkGeofences(vehicleId, shipmentId, latitude, longitude);
 
-    return success(res, 'Location updated successfully', 200, { location: locationData });
+    return successResponse(res, "Location updated successfully", 200, {
+      location: locationData,
+    });
   } catch (err) {
     next(err);
   }
@@ -92,30 +106,33 @@ const getVehicleLocation = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     // Try to get from Redis cache first
-    const cachedLocation = await redisClient.get(`vehicle:${vehicleId}:location`);
-    
+    const cachedLocation = await redisClient.get(
+      `vehicle:${vehicleId}:location`
+    );
+
     if (cachedLocation) {
-      return success(res, 'Vehicle location retrieved', 200, { 
+      return successResponse(res, "Vehicle location retrieved", 200, {
         location: JSON.parse(cachedLocation),
-        source: 'cache'
+        source: "cache",
       });
     }
 
     // Fall back to MongoDB for last known location
-    const lastLocation = await LiveTracking.findOne({ vehicleId })
-      .sort({ timestamp: -1 });
+    const lastLocation = await LiveTracking.findOne({ vehicleId }).sort({
+      timestamp: -1,
+    });
 
     if (!lastLocation) {
-      throw new AppError('No location data available for this vehicle', 404);
+      throw new AppError("No location data available for this vehicle", 404);
     }
 
-    return success(res, 'Vehicle location retrieved', 200, { 
+    return successResponse(res, "Vehicle location retrieved", 200, {
       location: lastLocation,
-      source: 'database'
+      source: "database",
     });
   } catch (err) {
     next(err);
@@ -132,30 +149,33 @@ const getShipmentLocation = async (req, res, next) => {
 
     const shipment = await Shipment.findByPk(shipmentId);
     if (!shipment) {
-      throw new AppError('Shipment not found', 404);
+      throw new AppError("Shipment not found", 404);
     }
 
     // Try to get from Redis cache first
-    const cachedLocation = await redisClient.get(`shipment:${shipmentId}:location`);
-    
+    const cachedLocation = await redisClient.get(
+      `shipment:${shipmentId}:location`
+    );
+
     if (cachedLocation) {
-      return success(res, 'Shipment location retrieved', 200, { 
+      return successResponse(res, "Shipment location retrieved", 200, {
         location: JSON.parse(cachedLocation),
-        source: 'cache'
+        source: "cache",
       });
     }
 
     // Fall back to MongoDB
-    const lastLocation = await LiveTracking.findOne({ shipmentId })
-      .sort({ timestamp: -1 });
+    const lastLocation = await LiveTracking.findOne({ shipmentId }).sort({
+      timestamp: -1,
+    });
 
     if (!lastLocation) {
-      throw new AppError('No location data available for this shipment', 404);
+      throw new AppError("No location data available for this shipment", 404);
     }
 
-    return success(res, 'Shipment location retrieved', 200, { 
+    return successResponse(res, "Shipment location retrieved", 200, {
       location: lastLocation,
-      source: 'database'
+      source: "database",
     });
   } catch (err) {
     next(err);
@@ -173,14 +193,14 @@ const getVehicleLocationHistory = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const query = { vehicleId };
     if (startDate && endDate) {
       query.timestamp = {
         $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $lte: new Date(endDate),
       };
     }
 
@@ -193,10 +213,10 @@ const getVehicleLocationHistory = async (req, res, next) => {
 
     const total = await LiveTracking.countDocuments(query);
 
-    return paginated(res, 'Vehicle location history retrieved', locations, {
+    return paginated(res, "Vehicle location history retrieved", locations, {
       page: parseInt(page),
       limit: parseInt(limit),
-      total
+      total,
     });
   } catch (err) {
     next(err);
@@ -214,14 +234,16 @@ const getShipmentLocationHistory = async (req, res, next) => {
 
     const shipment = await Shipment.findByPk(shipmentId);
     if (!shipment) {
-      throw new AppError('Shipment not found', 404);
+      throw new AppError("Shipment not found", 404);
     }
 
     const locations = await LiveTracking.find({ shipmentId })
       .sort({ timestamp: -1 })
       .limit(parseInt(limit));
 
-    return success(res, 'Shipment location history retrieved', 200, { locations });
+    return successResponse(res, "Shipment location history retrieved", 200, {
+      locations,
+    });
   } catch (err) {
     next(err);
   }
@@ -236,34 +258,40 @@ const getActiveVehicles = async (req, res, next) => {
     const { companyId } = req.query;
 
     // Get all vehicles that are in use
-    const where = { status: 'in_use' };
+    const where = { status: "in_use" };
     if (companyId) where.companyId = companyId;
-    if (req.user.role !== 'admin' && req.user.companyId) {
+    if (req.user.role !== "admin" && req.user.companyId) {
       where.companyId = req.user.companyId;
     }
 
     const vehicles = await Vehicle.findAll({
       where,
       include: [
-        { model: Driver, as: 'currentDriver', attributes: ['id', 'firstName', 'lastName', 'phone'] }
+        {
+          model: Driver,
+          as: "currentDriver",
+          attributes: ["id", "firstName", "lastName", "phone"],
+        },
       ],
-      attributes: ['id', 'licensePlate', 'type', 'make', 'model']
+      attributes: ["id", "licensePlate", "type", "make", "model"],
     });
 
     // Get current locations for each vehicle from cache
     const vehiclesWithLocations = await Promise.all(
       vehicles.map(async (vehicle) => {
-        const cachedLocation = await redisClient.get(`vehicle:${vehicle.id}:location`);
+        const cachedLocation = await redisClient.get(
+          `vehicle:${vehicle.id}:location`
+        );
         return {
           ...vehicle.toJSON(),
-          currentLocation: cachedLocation ? JSON.parse(cachedLocation) : null
+          currentLocation: cachedLocation ? JSON.parse(cachedLocation) : null,
         };
       })
     );
 
-    return success(res, 'Active vehicles retrieved', 200, { 
+    return successResponse(res, "Active vehicles retrieved", 200, {
       vehicles: vehiclesWithLocations,
-      count: vehiclesWithLocations.length
+      count: vehiclesWithLocations.length,
     });
   } catch (err) {
     next(err);
@@ -278,7 +306,7 @@ const updateTelemetry = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -292,12 +320,12 @@ const updateTelemetry = async (req, res, next) => {
       tirePressure,
       oilPressure,
       diagnosticCodes,
-      timestamp
+      timestamp,
     } = req.body;
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const telemetryData = {
@@ -311,7 +339,7 @@ const updateTelemetry = async (req, res, next) => {
       tirePressure,
       oilPressure,
       diagnosticCodes: diagnosticCodes || [],
-      timestamp: timestamp || new Date()
+      timestamp: timestamp || new Date(),
     };
 
     // Store in MongoDB
@@ -326,14 +354,16 @@ const updateTelemetry = async (req, res, next) => {
     await redisClient.set(
       `vehicle:${vehicleId}:telemetry`,
       JSON.stringify(telemetryData),
-      'EX',
+      "EX",
       300
     );
 
     // Check for alerts (low fuel, engine issues, etc.)
     await checkTelemetryAlerts(vehicleId, telemetryData);
 
-    return success(res, 'Telemetry updated successfully', 200, { telemetry: telemetryData });
+    return successResponse(res, "Telemetry updated successfully", 200, {
+      telemetry: telemetryData,
+    });
   } catch (err) {
     next(err);
   }
@@ -349,30 +379,33 @@ const getVehicleTelemetry = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(vehicleId);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     // Try cache first
-    const cachedTelemetry = await redisClient.get(`vehicle:${vehicleId}:telemetry`);
-    
+    const cachedTelemetry = await redisClient.get(
+      `vehicle:${vehicleId}:telemetry`
+    );
+
     if (cachedTelemetry) {
-      return success(res, 'Vehicle telemetry retrieved', 200, { 
+      return successResponse(res, "Vehicle telemetry retrieved", 200, {
         telemetry: JSON.parse(cachedTelemetry),
-        source: 'cache'
+        source: "cache",
       });
     }
 
     // Fall back to MongoDB
-    const telemetry = await VehicleTelemetry.findOne({ vehicleId })
-      .sort({ timestamp: -1 });
+    const telemetry = await VehicleTelemetry.findOne({ vehicleId }).sort({
+      timestamp: -1,
+    });
 
     if (!telemetry) {
-      throw new AppError('No telemetry data available', 404);
+      throw new AppError("No telemetry data available", 404);
     }
 
-    return success(res, 'Vehicle telemetry retrieved', 200, { 
+    return successResponse(res, "Vehicle telemetry retrieved", 200, {
       telemetry,
-      source: 'database'
+      source: "database",
     });
   } catch (err) {
     next(err);
@@ -387,7 +420,7 @@ const createGeofence = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -400,7 +433,7 @@ const createGeofence = async (req, res, next) => {
       shipmentIds,
       vehicleIds,
       alertOnEntry,
-      alertOnExit
+      alertOnExit,
     } = req.body;
 
     const geofenceKey = `geofence:${Date.now()}`;
@@ -418,27 +451,32 @@ const createGeofence = async (req, res, next) => {
       alertOnExit: alertOnExit !== false,
       companyId: req.user.companyId,
       createdBy: req.user.id,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     // Store geofence in Redis
     await redisClient.set(geofenceKey, JSON.stringify(geofenceData));
 
     // Add to company's geofence set
-    await redisClient.sadd(`company:${req.user.companyId}:geofences`, geofenceKey);
+    await redisClient.sadd(
+      `company:${req.user.companyId}:geofences`,
+      geofenceKey
+    );
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'GEOFENCE_CREATED',
-      resource: 'Geofence',
+      action: "GEOFENCE_CREATED",
+      resource: "Geofence",
       resourceId: geofenceKey,
       details: { name },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Geofence created successfully', 201, { geofence: geofenceData });
+    return successResponse(res, "Geofence created successfully", 201, {
+      geofence: geofenceData,
+    });
   } catch (err) {
     next(err);
   }
@@ -451,9 +489,11 @@ const createGeofence = async (req, res, next) => {
 const getGeofences = async (req, res, next) => {
   try {
     const companyId = req.user.companyId;
-    
-    const geofenceKeys = await redisClient.smembers(`company:${companyId}:geofences`);
-    
+
+    const geofenceKeys = await redisClient.smembers(
+      `company:${companyId}:geofences`
+    );
+
     const geofences = await Promise.all(
       geofenceKeys.map(async (key) => {
         const data = await redisClient.get(key);
@@ -461,8 +501,8 @@ const getGeofences = async (req, res, next) => {
       })
     );
 
-    return success(res, 'Geofences retrieved successfully', 200, { 
-      geofences: geofences.filter(Boolean) 
+    return successResponse(res, "Geofences retrieved successfully", 200, {
+      geofences: geofences.filter(Boolean),
     });
   } catch (err) {
     next(err);
@@ -479,13 +519,16 @@ const deleteGeofence = async (req, res, next) => {
 
     const geofenceData = await redisClient.get(geofenceId);
     if (!geofenceData) {
-      throw new AppError('Geofence not found', 404);
+      throw new AppError("Geofence not found", 404);
     }
 
     const geofence = JSON.parse(geofenceData);
 
     // Remove from company's geofence set
-    await redisClient.srem(`company:${geofence.companyId}:geofences`, geofenceId);
+    await redisClient.srem(
+      `company:${geofence.companyId}:geofences`,
+      geofenceId
+    );
 
     // Delete geofence
     await redisClient.del(geofenceId);
@@ -493,15 +536,15 @@ const deleteGeofence = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'GEOFENCE_DELETED',
-      resource: 'Geofence',
+      action: "GEOFENCE_DELETED",
+      resource: "Geofence",
       resourceId: geofenceId,
       details: { name: geofence.name },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Geofence deleted successfully', 200);
+    return successResponse(res, "Geofence deleted successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -516,22 +559,24 @@ const getShipmentETA = async (req, res, next) => {
     const { shipmentId } = req.params;
 
     const shipment = await Shipment.findByPk(shipmentId, {
-      include: [{ model: Vehicle, as: 'vehicle' }]
+      include: [{ model: Vehicle, as: "vehicle" }],
     });
 
     if (!shipment) {
-      throw new AppError('Shipment not found', 404);
+      throw new AppError("Shipment not found", 404);
     }
 
     if (!shipment.vehicleId) {
-      throw new AppError('Shipment has no assigned vehicle', 400);
+      throw new AppError("Shipment has no assigned vehicle", 400);
     }
 
     // Get current vehicle location
-    const cachedLocation = await redisClient.get(`vehicle:${shipment.vehicleId}:location`);
-    
+    const cachedLocation = await redisClient.get(
+      `vehicle:${shipment.vehicleId}:location`
+    );
+
     if (!cachedLocation) {
-      throw new AppError('No current location data available', 404);
+      throw new AppError("No current location data available", 404);
     }
 
     const currentLocation = JSON.parse(cachedLocation);
@@ -549,20 +594,20 @@ const getShipmentETA = async (req, res, next) => {
     const estimatedMinutes = (remainingDistance / averageSpeed) * 60;
     const eta = new Date(Date.now() + estimatedMinutes * 60 * 1000);
 
-    return success(res, 'Shipment ETA retrieved', 200, {
+    return successResponse(res, "Shipment ETA retrieved", 200, {
       shipmentId,
       currentLocation: {
         latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude
+        longitude: currentLocation.longitude,
       },
       destination: {
         latitude: shipment.deliveryLatitude,
         longitude: shipment.deliveryLongitude,
-        address: shipment.deliveryAddress
+        address: shipment.deliveryAddress,
       },
       remainingDistance: Math.round(remainingDistance * 100) / 100, // km
       estimatedMinutes: Math.round(estimatedMinutes),
-      eta
+      eta,
     });
   } catch (err) {
     next(err);
@@ -578,8 +623,10 @@ const checkGeofences = async (vehicleId, shipmentId, latitude, longitude) => {
     const vehicle = await Vehicle.findByPk(vehicleId);
     if (!vehicle) return;
 
-    const geofenceKeys = await redisClient.smembers(`company:${vehicle.companyId}:geofences`);
-    
+    const geofenceKeys = await redisClient.smembers(
+      `company:${vehicle.companyId}:geofences`
+    );
+
     for (const key of geofenceKeys) {
       const geofenceData = await redisClient.get(key);
       if (!geofenceData) continue;
@@ -587,11 +634,10 @@ const checkGeofences = async (vehicleId, shipmentId, latitude, longitude) => {
       const geofence = JSON.parse(geofenceData);
 
       // Check if this geofence applies to this vehicle/shipment
-      const applies = (
+      const applies =
         geofence.vehicleIds.includes(vehicleId) ||
         (shipmentId && geofence.shipmentIds.includes(shipmentId)) ||
-        (geofence.vehicleIds.length === 0 && geofence.shipmentIds.length === 0)
-      );
+        (geofence.vehicleIds.length === 0 && geofence.shipmentIds.length === 0);
 
       if (!applies) continue;
 
@@ -601,51 +647,65 @@ const checkGeofences = async (vehicleId, shipmentId, latitude, longitude) => {
       // Get previous state
       const previousStateKey = `geofence:${geofence.id}:vehicle:${vehicleId}:state`;
       const previousState = await redisClient.get(previousStateKey);
-      const wasInside = previousState === 'inside';
+      const wasInside = previousState === "inside";
 
       // Store current state
-      await redisClient.set(previousStateKey, isInside ? 'inside' : 'outside', 'EX', 86400);
+      await redisClient.set(
+        previousStateKey,
+        isInside ? "inside" : "outside",
+        "EX",
+        86400
+      );
 
       // Trigger alerts on state change
       if (isInside && !wasInside && geofence.alertOnEntry) {
-        await triggerGeofenceAlert(vehicleId, shipmentId, geofence, 'entry');
+        await triggerGeofenceAlert(vehicleId, shipmentId, geofence, "entry");
       } else if (!isInside && wasInside && geofence.alertOnExit) {
-        await triggerGeofenceAlert(vehicleId, shipmentId, geofence, 'exit');
+        await triggerGeofenceAlert(vehicleId, shipmentId, geofence, "exit");
       }
     }
   } catch (err) {
-    logger.error('Geofence check error:', err);
+    logger.error("Geofence check error:", err);
   }
 };
 
 /**
  * Helper function to trigger geofence alerts
  */
-const triggerGeofenceAlert = async (vehicleId, shipmentId, geofence, eventType) => {
+const triggerGeofenceAlert = async (
+  vehicleId,
+  shipmentId,
+  geofence,
+  eventType
+) => {
   const alertData = {
-    type: 'geofence_alert',
+    type: "geofence_alert",
     geofenceId: geofence.id,
     geofenceName: geofence.name,
     vehicleId,
     shipmentId,
     eventType, // 'entry' or 'exit'
-    timestamp: new Date()
+    timestamp: new Date(),
   };
 
   // Emit real-time alert
-  emitToRoom(`company:${geofence.companyId}`, 'geofence_alert', alertData);
+  emitToRoom(`company:${geofence.companyId}`, "geofence_alert", alertData);
 
   // Create shipment event if applicable
   if (shipmentId) {
     await ShipmentEvent.create({
       shipmentId,
       eventType: `GEOFENCE_${eventType.toUpperCase()}`,
-      description: `${eventType === 'entry' ? 'Entered' : 'Exited'} geofence: ${geofence.name}`,
-      isPublic: true
+      description: `${eventType === "entry" ? "Entered" : "Exited"} geofence: ${
+        geofence.name
+      }`,
+      isPublic: true,
     });
   }
 
-  logger.info(`Geofence ${eventType} alert: Vehicle ${vehicleId} ${eventType} ${geofence.name}`);
+  logger.info(
+    `Geofence ${eventType} alert: Vehicle ${vehicleId} ${eventType} ${geofence.name}`
+  );
 };
 
 /**
@@ -656,33 +716,42 @@ const checkTelemetryAlerts = async (vehicleId, telemetry) => {
 
   // Low fuel alert
   if (telemetry.fuelLevel !== undefined && telemetry.fuelLevel < 15) {
-    alerts.push({ type: 'low_fuel', level: telemetry.fuelLevel });
+    alerts.push({ type: "low_fuel", level: telemetry.fuelLevel });
   }
 
   // High engine temperature
-  if (telemetry.engineTemperature !== undefined && telemetry.engineTemperature > 100) {
-    alerts.push({ type: 'high_engine_temp', temperature: telemetry.engineTemperature });
+  if (
+    telemetry.engineTemperature !== undefined &&
+    telemetry.engineTemperature > 100
+  ) {
+    alerts.push({
+      type: "high_engine_temp",
+      temperature: telemetry.engineTemperature,
+    });
   }
 
   // Low battery
-  if (telemetry.batteryVoltage !== undefined && telemetry.batteryVoltage < 11.5) {
-    alerts.push({ type: 'low_battery', voltage: telemetry.batteryVoltage });
+  if (
+    telemetry.batteryVoltage !== undefined &&
+    telemetry.batteryVoltage < 11.5
+  ) {
+    alerts.push({ type: "low_battery", voltage: telemetry.batteryVoltage });
   }
 
   // Diagnostic codes
   if (telemetry.diagnosticCodes && telemetry.diagnosticCodes.length > 0) {
-    alerts.push({ type: 'diagnostic_codes', codes: telemetry.diagnosticCodes });
+    alerts.push({ type: "diagnostic_codes", codes: telemetry.diagnosticCodes });
   }
 
   if (alerts.length > 0) {
     const vehicle = await Vehicle.findByPk(vehicleId);
-    
+
     for (const alert of alerts) {
-      emitToRoom(`company:${vehicle.companyId}`, 'vehicle_alert', {
+      emitToRoom(`company:${vehicle.companyId}`, "vehicle_alert", {
         vehicleId,
         licensePlate: vehicle.licensePlate,
         alert,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
   }
@@ -700,5 +769,5 @@ module.exports = {
   createGeofence,
   getGeofences,
   deleteGeofence,
-  getShipmentETA
+  getShipmentETA,
 };

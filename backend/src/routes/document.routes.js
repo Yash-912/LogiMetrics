@@ -1,22 +1,19 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const documentController = require('../controllers/document.controller');
-const { document: documentValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { uploadSingle } = require('../middleware/upload.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
-const { param } = require('express-validator');
+const documentController = require("../controllers/document.controller");
+const { document: documentValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { uploadSingle } = require("../middleware/upload.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
+const { param } = require("express-validator");
 
 // Public route for shared document access (must be before authenticate middleware)
 router.get(
-    '/shared/:token',
-    [
-        param('token').trim().notEmpty().withMessage('Token is required')
-    ],
-    validate,
-    documentController.accessSharedDocument
+  "/shared/:token",
+  validate([param("token").trim().notEmpty().withMessage("Token is required")]),
+  documentController.accessSharedDocument
 );
 
 // Apply authentication to all other routes
@@ -28,10 +25,9 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-    '/',
-    documentValidator.listDocumentsValidation,
-    validate,
-    documentController.getDocuments
+  "/",
+  validate(documentValidator.listDocumentsValidation),
+  documentController.getDocuments
 );
 
 /**
@@ -40,13 +36,14 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/entity/:entityType/:entityId',
-    [
-        param('entityType').isIn(['shipment', 'vehicle', 'driver', 'company', 'invoice']).withMessage('Invalid entity type'),
-        param('entityId').isUUID().withMessage('Invalid entity ID')
-    ],
-    validate,
-    documentController.getEntityDocuments
+  "/entity/:entityType/:entityId",
+  validate([
+    param("entityType")
+      .isIn(["shipment", "vehicle", "driver", "company", "invoice"])
+      .withMessage("Invalid entity type"),
+    param("entityId").isUUID().withMessage("Invalid entity ID"),
+  ]),
+  documentController.getEntityDocuments
 );
 
 /**
@@ -55,10 +52,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/:id',
-    documentValidator.getDocumentValidation,
-    validate,
-    documentController.getDocumentById
+  "/:id",
+  validate(documentValidator.getDocumentValidation),
+  documentController.getDocumentById
 );
 
 /**
@@ -67,11 +63,11 @@ router.get(
  * @access  Private
  */
 router.post(
-    '/',
-    uploadSingle('file'),
-    documentValidator.uploadDocumentValidation,
-    validate,
-    documentController.uploadDocument
+  "/",
+  uploadSingle("file"),
+  documentValidator.uploadDocumentValidation,
+  validate,
+  documentController.uploadDocument
 );
 
 /**
@@ -80,10 +76,9 @@ router.post(
  * @access  Private
  */
 router.put(
-    '/:id',
-    documentValidator.updateDocumentValidation,
-    validate,
-    documentController.updateDocument
+  "/:id",
+  validate(documentValidator.updateDocumentValidation),
+  documentController.updateDocument
 );
 
 /**
@@ -92,10 +87,9 @@ router.put(
  * @access  Private
  */
 router.delete(
-    '/:id',
-    documentValidator.deleteDocumentValidation,
-    validate,
-    documentController.deleteDocument
+  "/:id",
+  validate(documentValidator.deleteDocumentValidation),
+  documentController.deleteDocument
 );
 
 /**
@@ -104,10 +98,9 @@ router.delete(
  * @access  Private
  */
 router.post(
-    '/:id/restore',
-    documentValidator.getDocumentValidation,
-    validate,
-    documentController.restoreDocument
+  "/:id/restore",
+  validate(documentValidator.getDocumentValidation),
+  documentController.restoreDocument
 );
 
 /**
@@ -116,10 +109,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/:id/download',
-    documentValidator.downloadDocumentValidation,
-    validate,
-    documentController.downloadDocument
+  "/:id/download",
+  validate(documentValidator.downloadDocumentValidation),
+  documentController.downloadDocument
 );
 
 /**
@@ -128,11 +120,11 @@ router.get(
  * @access  Private
  */
 router.post(
-    '/:id/versions',
-    uploadSingle('file'),
-    documentValidator.uploadVersionValidation,
-    validate,
-    documentController.uploadVersion
+  "/:id/versions",
+  uploadSingle("file"),
+  documentValidator.uploadVersionValidation,
+  validate,
+  documentController.uploadVersion
 );
 
 /**
@@ -141,10 +133,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/:id/versions',
-    documentValidator.getVersionsValidation,
-    validate,
-    documentController.getVersionHistory
+  "/:id/versions",
+  validate(documentValidator.getVersionsValidation),
+  documentController.getVersionHistory
 );
 
 /**
@@ -153,10 +144,9 @@ router.get(
  * @access  Private
  */
 router.post(
-    '/:id/share',
-    documentValidator.shareDocumentValidation,
-    validate,
-    documentController.shareDocument
+  "/:id/share",
+  validate(documentValidator.shareDocumentValidation),
+  documentController.shareDocument
 );
 
 /**
@@ -165,11 +155,10 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/bulk-delete',
-    authorize(['admin', 'manager']),
-    documentValidator.bulkOperationValidation,
-    validate,
-    documentController.bulkDeleteDocuments
+  "/bulk-delete",
+  authorize(["admin", "manager"]),
+  validate(documentValidator.bulkOperationValidation),
+  documentController.bulkDeleteDocuments
 );
 
 module.exports = router;

@@ -1,11 +1,14 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const trackingController = require('../controllers/tracking.controller');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter, strictLimiter } = require('../middleware/rateLimit.middleware');
-const { body, param, query } = require('express-validator');
+const trackingController = require("../controllers/tracking.controller");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const {
+  apiLimiter,
+  strictLimiter,
+} = require("../middleware/rateLimit.middleware");
+const { body, param, query } = require("express-validator");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -16,19 +19,31 @@ router.use(authenticate);
  * @access  Private (Driver, Admin, Manager)
  */
 router.post(
-    '/location',
-    authorize(['admin', 'manager', 'driver']),
-    [
-        body('vehicleId').isUUID().withMessage('Invalid vehicle ID'),
-        body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-        body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
-        body('speed').optional().isFloat({ min: 0 }).withMessage('Speed must be positive'),
-        body('heading').optional().isFloat({ min: 0, max: 360 }).withMessage('Heading must be between 0 and 360'),
-        body('accuracy').optional().isFloat({ min: 0 }).withMessage('Accuracy must be positive'),
-        body('altitude').optional().isFloat().withMessage('Invalid altitude')
-    ],
-    validate,
-    trackingController.updateLocation
+  "/location",
+  authorize(["admin", "manager", "driver"]),
+  validate([
+    body("vehicleId").isUUID().withMessage("Invalid vehicle ID"),
+    body("latitude")
+      .isFloat({ min: -90, max: 90 })
+      .withMessage("Invalid latitude"),
+    body("longitude")
+      .isFloat({ min: -180, max: 180 })
+      .withMessage("Invalid longitude"),
+    body("speed")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Speed must be positive"),
+    body("heading")
+      .optional()
+      .isFloat({ min: 0, max: 360 })
+      .withMessage("Heading must be between 0 and 360"),
+    body("accuracy")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Accuracy must be positive"),
+    body("altitude").optional().isFloat().withMessage("Invalid altitude"),
+  ]),
+  trackingController.updateLocation
 );
 
 /**
@@ -37,12 +52,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/vehicle/:vehicleId/location',
-    [
-        param('vehicleId').isUUID().withMessage('Invalid vehicle ID')
-    ],
-    validate,
-    trackingController.getVehicleLocation
+  "/vehicle/:vehicleId/location",
+  validate([param("vehicleId").isUUID().withMessage("Invalid vehicle ID")]),
+  trackingController.getVehicleLocation
 );
 
 /**
@@ -51,12 +63,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/shipment/:shipmentId/location',
-    [
-        param('shipmentId').isUUID().withMessage('Invalid shipment ID')
-    ],
-    validate,
-    trackingController.getShipmentLocation
+  "/shipment/:shipmentId/location",
+  validate([param("shipmentId").isUUID().withMessage("Invalid shipment ID")]),
+  trackingController.getShipmentLocation
 );
 
 /**
@@ -65,15 +74,17 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/vehicle/:vehicleId/history',
-    [
-        param('vehicleId').isUUID().withMessage('Invalid vehicle ID'),
-        query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-        query('endDate').optional().isISO8601().withMessage('Invalid end date'),
-        query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be between 1 and 1000')
-    ],
-    validate,
-    trackingController.getVehicleLocationHistory
+  "/vehicle/:vehicleId/history",
+  validate([
+    param("vehicleId").isUUID().withMessage("Invalid vehicle ID"),
+    query("startDate").optional().isISO8601().withMessage("Invalid start date"),
+    query("endDate").optional().isISO8601().withMessage("Invalid end date"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 1000 })
+      .withMessage("Limit must be between 1 and 1000"),
+  ]),
+  trackingController.getVehicleLocationHistory
 );
 
 /**
@@ -82,14 +93,13 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/shipment/:shipmentId/history',
-    [
-        param('shipmentId').isUUID().withMessage('Invalid shipment ID'),
-        query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-        query('endDate').optional().isISO8601().withMessage('Invalid end date')
-    ],
-    validate,
-    trackingController.getShipmentLocationHistory
+  "/shipment/:shipmentId/history",
+  validate([
+    param("shipmentId").isUUID().withMessage("Invalid shipment ID"),
+    query("startDate").optional().isISO8601().withMessage("Invalid start date"),
+    query("endDate").optional().isISO8601().withMessage("Invalid end date"),
+  ]),
+  trackingController.getShipmentLocationHistory
 );
 
 /**
@@ -98,13 +108,15 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/vehicles/active',
-    [
-        query('companyId').optional().isUUID().withMessage('Invalid company ID'),
-        query('bounds').optional().isString().withMessage('Bounds must be a string')
-    ],
-    validate,
-    trackingController.getActiveVehicles
+  "/vehicles/active",
+  validate([
+    query("companyId").optional().isUUID().withMessage("Invalid company ID"),
+    query("bounds")
+      .optional()
+      .isString()
+      .withMessage("Bounds must be a string"),
+  ]),
+  trackingController.getActiveVehicles
 );
 
 /**
@@ -113,18 +125,32 @@ router.get(
  * @access  Private (Driver, Admin, Manager)
  */
 router.post(
-    '/telemetry',
-    authorize(['admin', 'manager', 'driver']),
-    [
-        body('vehicleId').isUUID().withMessage('Invalid vehicle ID'),
-        body('engineStatus').optional().isIn(['on', 'off', 'idle']).withMessage('Invalid engine status'),
-        body('fuelLevel').optional().isFloat({ min: 0, max: 100 }).withMessage('Fuel level must be between 0 and 100'),
-        body('odometer').optional().isFloat({ min: 0 }).withMessage('Odometer must be positive'),
-        body('engineTemperature').optional().isFloat().withMessage('Invalid engine temperature'),
-        body('batteryVoltage').optional().isFloat({ min: 0 }).withMessage('Battery voltage must be positive')
-    ],
-    validate,
-    trackingController.updateTelemetry
+  "/telemetry",
+  authorize(["admin", "manager", "driver"]),
+  validate([
+    body("vehicleId").isUUID().withMessage("Invalid vehicle ID"),
+    body("engineStatus")
+      .optional()
+      .isIn(["on", "off", "idle"])
+      .withMessage("Invalid engine status"),
+    body("fuelLevel")
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage("Fuel level must be between 0 and 100"),
+    body("odometer")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Odometer must be positive"),
+    body("engineTemperature")
+      .optional()
+      .isFloat()
+      .withMessage("Invalid engine temperature"),
+    body("batteryVoltage")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Battery voltage must be positive"),
+  ]),
+  trackingController.updateTelemetry
 );
 
 /**
@@ -133,14 +159,13 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/vehicle/:vehicleId/telemetry',
-    [
-        param('vehicleId').isUUID().withMessage('Invalid vehicle ID'),
-        query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-        query('endDate').optional().isISO8601().withMessage('Invalid end date')
-    ],
-    validate,
-    trackingController.getVehicleTelemetry
+  "/vehicle/:vehicleId/telemetry",
+  validate([
+    param("vehicleId").isUUID().withMessage("Invalid vehicle ID"),
+    query("startDate").optional().isISO8601().withMessage("Invalid start date"),
+    query("endDate").optional().isISO8601().withMessage("Invalid end date"),
+  ]),
+  trackingController.getVehicleTelemetry
 );
 
 /**
@@ -149,19 +174,35 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/geofences',
-    authorize(['admin', 'manager']),
-    [
-        body('name').trim().notEmpty().withMessage('Name is required'),
-        body('type').isIn(['circle', 'polygon']).withMessage('Type must be circle or polygon'),
-        body('center').optional().isObject().withMessage('Center must be an object'),
-        body('radius').optional().isFloat({ min: 0 }).withMessage('Radius must be positive'),
-        body('coordinates').optional().isArray().withMessage('Coordinates must be an array'),
-        body('alertOnEntry').optional().isBoolean().withMessage('Alert on entry must be boolean'),
-        body('alertOnExit').optional().isBoolean().withMessage('Alert on exit must be boolean')
-    ],
-    validate,
-    trackingController.createGeofence
+  "/geofences",
+  authorize(["admin", "manager"]),
+  validate([
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("type")
+      .isIn(["circle", "polygon"])
+      .withMessage("Type must be circle or polygon"),
+    body("center")
+      .optional()
+      .isObject()
+      .withMessage("Center must be an object"),
+    body("radius")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Radius must be positive"),
+    body("coordinates")
+      .optional()
+      .isArray()
+      .withMessage("Coordinates must be an array"),
+    body("alertOnEntry")
+      .optional()
+      .isBoolean()
+      .withMessage("Alert on entry must be boolean"),
+    body("alertOnExit")
+      .optional()
+      .isBoolean()
+      .withMessage("Alert on exit must be boolean"),
+  ]),
+  trackingController.createGeofence
 );
 
 /**
@@ -170,13 +211,15 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/geofences',
-    [
-        query('companyId').optional().isUUID().withMessage('Invalid company ID'),
-        query('active').optional().isBoolean().withMessage('Active must be boolean')
-    ],
-    validate,
-    trackingController.getGeofences
+  "/geofences",
+  validate([
+    query("companyId").optional().isUUID().withMessage("Invalid company ID"),
+    query("active")
+      .optional()
+      .isBoolean()
+      .withMessage("Active must be boolean"),
+  ]),
+  trackingController.getGeofences
 );
 
 /**
@@ -185,13 +228,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.delete(
-    '/geofences/:geofenceId',
-    authorize(['admin', 'manager']),
-    [
-        param('geofenceId').isUUID().withMessage('Invalid geofence ID')
-    ],
-    validate,
-    trackingController.deleteGeofence
+  "/geofences/:geofenceId",
+  authorize(["admin", "manager"]),
+  validate([param("geofenceId").isUUID().withMessage("Invalid geofence ID")]),
+  trackingController.deleteGeofence
 );
 
 /**
@@ -200,12 +240,10 @@ router.delete(
  * @access  Private
  */
 router.get(
-    '/shipment/:shipmentId/eta',
-    [
-        param('shipmentId').isUUID().withMessage('Invalid shipment ID')
-    ],
-    validate,
-    trackingController.getShipmentETA
+  "/shipment/:shipmentId/eta",
+  [param("shipmentId").isUUID().withMessage("Invalid shipment ID")],
+  validate,
+  trackingController.getShipmentETA
 );
 
 module.exports = router;

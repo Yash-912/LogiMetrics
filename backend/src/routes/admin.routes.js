@@ -1,17 +1,20 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const adminController = require('../controllers/admin.controller');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter, strictLimiter } = require('../middleware/rateLimit.middleware');
-const { body, param, query } = require('express-validator');
+const adminController = require("../controllers/admin.controller");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const {
+  apiLimiter,
+  strictLimiter,
+} = require("../middleware/rateLimit.middleware");
+const { body, param, query } = require("express-validator");
 
 // Apply authentication to all routes
 router.use(authenticate);
 
 // Apply admin authorization to all routes
-router.use(authorize(['admin', 'super_admin']));
+router.use(authorize(["admin", "super_admin"]));
 
 /**
  * @route   GET /api/admin/stats
@@ -19,12 +22,14 @@ router.use(authorize(['admin', 'super_admin']));
  * @access  Private (Admin)
  */
 router.get(
-    '/stats',
-    [
-        query('period').optional().isIn(['day', 'week', 'month', 'year']).withMessage('Invalid period')
-    ],
-    validate,
-    adminController.getSystemStats
+  "/stats",
+  validate([
+    query("period")
+      .optional()
+      .isIn(["day", "week", "month", "year"])
+      .withMessage("Invalid period"),
+  ]),
+  adminController.getSystemStats
 );
 
 /**
@@ -33,16 +38,24 @@ router.get(
  * @access  Private (Admin)
  */
 router.get(
-    '/users',
-    [
-        query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive'),
-        query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
-        query('status').optional().isIn(['active', 'inactive', 'suspended', 'pending']).withMessage('Invalid status'),
-        query('role').optional().isString().withMessage('Invalid role'),
-        query('search').optional().isString().withMessage('Invalid search query')
-    ],
-    validate,
-    adminController.getAllUsers
+  "/users",
+  validate([
+    query("page")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("Page must be positive"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be between 1 and 100"),
+    query("status")
+      .optional()
+      .isIn(["active", "inactive", "suspended", "pending"])
+      .withMessage("Invalid status"),
+    query("role").optional().isString().withMessage("Invalid role"),
+    query("search").optional().isString().withMessage("Invalid search query"),
+  ]),
+  adminController.getAllUsers
 );
 
 /**
@@ -51,14 +64,19 @@ router.get(
  * @access  Private (Admin)
  */
 router.put(
-    '/users/:id/status',
-    [
-        param('id').isUUID().withMessage('Invalid user ID'),
-        body('status').isIn(['active', 'inactive', 'suspended']).withMessage('Invalid status'),
-        body('reason').optional().trim().isLength({ max: 500 }).withMessage('Reason too long')
-    ],
-    validate,
-    adminController.updateUserStatus
+  "/users/:id/status",
+  validate([
+    param("id").isUUID().withMessage("Invalid user ID"),
+    body("status")
+      .isIn(["active", "inactive", "suspended"])
+      .withMessage("Invalid status"),
+    body("reason")
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage("Reason too long"),
+  ]),
+  adminController.updateUserStatus
 );
 
 /**
@@ -67,13 +85,12 @@ router.put(
  * @access  Private (Admin)
  */
 router.put(
-    '/users/:id/role',
-    [
-        param('id').isUUID().withMessage('Invalid user ID'),
-        body('role').notEmpty().withMessage('Role is required')
-    ],
-    validate,
-    adminController.updateUserRole
+  "/users/:id/role",
+  validate([
+    param("id").isUUID().withMessage("Invalid user ID"),
+    body("role").notEmpty().withMessage("Role is required"),
+  ]),
+  adminController.updateUserRole
 );
 
 /**
@@ -82,13 +99,10 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-    '/users/:id',
-    strictLimiter,
-    [
-        param('id').isUUID().withMessage('Invalid user ID')
-    ],
-    validate,
-    adminController.deleteUser
+  "/users/:id",
+  strictLimiter,
+  validate([param("id").isUUID().withMessage("Invalid user ID")]),
+  adminController.deleteUser
 );
 
 /**
@@ -97,15 +111,23 @@ router.delete(
  * @access  Private (Admin)
  */
 router.get(
-    '/companies',
-    [
-        query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive'),
-        query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
-        query('status').optional().isIn(['active', 'inactive', 'suspended', 'pending']).withMessage('Invalid status'),
-        query('search').optional().isString().withMessage('Invalid search query')
-    ],
-    validate,
-    adminController.getAllCompanies
+  "/companies",
+  validate([
+    query("page")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("Page must be positive"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be between 1 and 100"),
+    query("status")
+      .optional()
+      .isIn(["active", "inactive", "suspended", "pending"])
+      .withMessage("Invalid status"),
+    query("search").optional().isString().withMessage("Invalid search query"),
+  ]),
+  adminController.getAllCompanies
 );
 
 /**
@@ -114,14 +136,19 @@ router.get(
  * @access  Private (Admin)
  */
 router.put(
-    '/companies/:id/status',
-    [
-        param('id').isUUID().withMessage('Invalid company ID'),
-        body('status').isIn(['active', 'inactive', 'suspended']).withMessage('Invalid status'),
-        body('reason').optional().trim().isLength({ max: 500 }).withMessage('Reason too long')
-    ],
-    validate,
-    adminController.updateCompanyStatus
+  "/companies/:id/status",
+  validate([
+    param("id").isUUID().withMessage("Invalid company ID"),
+    body("status")
+      .isIn(["active", "inactive", "suspended"])
+      .withMessage("Invalid status"),
+    body("reason")
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage("Reason too long"),
+  ]),
+  adminController.updateCompanyStatus
 );
 
 /**
@@ -129,10 +156,7 @@ router.put(
  * @desc    Get system settings
  * @access  Private (Admin)
  */
-router.get(
-    '/settings',
-    adminController.getSystemSettings
-);
+router.get("/settings", adminController.getSystemSettings);
 
 /**
  * @route   PUT /api/admin/settings/:key
@@ -140,13 +164,12 @@ router.get(
  * @access  Private (Admin)
  */
 router.put(
-    '/settings/:key',
-    [
-        param('key').trim().notEmpty().withMessage('Setting key is required'),
-        body('value').notEmpty().withMessage('Value is required')
-    ],
-    validate,
-    adminController.updateSystemSetting
+  "/settings/:key",
+  validate([
+    param("key").trim().notEmpty().withMessage("Setting key is required"),
+    body("value").notEmpty().withMessage("Value is required"),
+  ]),
+  adminController.updateSystemSetting
 );
 
 /**
@@ -155,15 +178,22 @@ router.put(
  * @access  Private (Admin)
  */
 router.post(
-    '/maintenance',
-    strictLimiter,
-    [
-        body('enabled').isBoolean().withMessage('Enabled must be boolean'),
-        body('message').optional().trim().isLength({ max: 500 }).withMessage('Message too long'),
-        body('scheduledEnd').optional().isISO8601().withMessage('Invalid scheduled end date')
-    ],
-    validate,
-    adminController.toggleMaintenanceMode
+  "/maintenance",
+  strictLimiter,
+  [
+    body("enabled").isBoolean().withMessage("Enabled must be boolean"),
+    body("message")
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage("Message too long"),
+    body("scheduledEnd")
+      .optional()
+      .isISO8601()
+      .withMessage("Invalid scheduled end date"),
+  ],
+  validate,
+  adminController.toggleMaintenanceMode
 );
 
 /**
@@ -172,17 +202,23 @@ router.post(
  * @access  Private (Admin)
  */
 router.get(
-    '/audit-logs',
-    [
-        query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive'),
-        query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
-        query('userId').optional().isUUID().withMessage('Invalid user ID'),
-        query('action').optional().isString().withMessage('Invalid action'),
-        query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-        query('endDate').optional().isISO8601().withMessage('Invalid end date')
-    ],
-    validate,
-    adminController.getAuditLogs
+  "/audit-logs",
+  [
+    query("page")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("Page must be positive"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be between 1 and 100"),
+    query("userId").optional().isUUID().withMessage("Invalid user ID"),
+    query("action").optional().isString().withMessage("Invalid action"),
+    query("startDate").optional().isISO8601().withMessage("Invalid start date"),
+    query("endDate").optional().isISO8601().withMessage("Invalid end date"),
+  ],
+  validate,
+  adminController.getAuditLogs
 );
 
 /**
@@ -191,13 +227,16 @@ router.get(
  * @access  Private (Admin)
  */
 router.post(
-    '/cache/clear',
-    [
-        body('pattern').optional().isString().withMessage('Pattern must be a string'),
-        body('all').optional().isBoolean().withMessage('All must be boolean')
-    ],
-    validate,
-    adminController.clearCache
+  "/cache/clear",
+  [
+    body("pattern")
+      .optional()
+      .isString()
+      .withMessage("Pattern must be a string"),
+    body("all").optional().isBoolean().withMessage("All must be boolean"),
+  ],
+  validate,
+  adminController.clearCache
 );
 
 /**
@@ -205,10 +244,7 @@ router.post(
  * @desc    Get system health
  * @access  Private (Admin)
  */
-router.get(
-    '/health',
-    adminController.getSystemHealth
-);
+router.get("/health", adminController.getSystemHealth);
 
 /**
  * @route   POST /api/admin/impersonate/:userId
@@ -216,14 +252,12 @@ router.get(
  * @access  Private (Super Admin)
  */
 router.post(
-    '/impersonate/:userId',
-    authorize(['super_admin']),
-    strictLimiter,
-    [
-        param('userId').isUUID().withMessage('Invalid user ID')
-    ],
-    validate,
-    adminController.impersonateUser
+  "/impersonate/:userId",
+  authorize(["super_admin"]),
+  strictLimiter,
+  [param("userId").isUUID().withMessage("Invalid user ID")],
+  validate,
+  adminController.impersonateUser
 );
 
 /**
@@ -232,16 +266,35 @@ router.post(
  * @access  Private (Admin)
  */
 router.post(
-    '/broadcast',
-    [
-        body('title').trim().notEmpty().withMessage('Title is required').isLength({ max: 200 }).withMessage('Title too long'),
-        body('message').trim().notEmpty().withMessage('Message is required').isLength({ max: 2000 }).withMessage('Message too long'),
-        body('channels').optional().isArray().withMessage('Channels must be an array'),
-        body('targetRoles').optional().isArray().withMessage('Target roles must be an array'),
-        body('targetCompanies').optional().isArray().withMessage('Target companies must be an array')
-    ],
-    validate,
-    adminController.sendBroadcast
+  "/broadcast",
+  [
+    body("title")
+      .trim()
+      .notEmpty()
+      .withMessage("Title is required")
+      .isLength({ max: 200 })
+      .withMessage("Title too long"),
+    body("message")
+      .trim()
+      .notEmpty()
+      .withMessage("Message is required")
+      .isLength({ max: 2000 })
+      .withMessage("Message too long"),
+    body("channels")
+      .optional()
+      .isArray()
+      .withMessage("Channels must be an array"),
+    body("targetRoles")
+      .optional()
+      .isArray()
+      .withMessage("Target roles must be an array"),
+    body("targetCompanies")
+      .optional()
+      .isArray()
+      .withMessage("Target companies must be an array"),
+  ],
+  validate,
+  adminController.sendBroadcast
 );
 
 module.exports = router;

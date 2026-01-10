@@ -1,12 +1,15 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const driverController = require('../controllers/driver.controller');
-const { driver: driverValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { uploadSingle, uploadMultiple } = require('../middleware/upload.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const driverController = require("../controllers/driver.controller");
+const { driver: driverValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const {
+  uploadSingle,
+  uploadMultiple,
+} = require("../middleware/upload.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -17,9 +20,8 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-  '/',
-  driverValidator.listDriversValidation,
-  validate,
+  "/",
+  validate(driverValidator.listDriversValidation),
   driverController.getDrivers
 );
 
@@ -29,9 +31,8 @@ router.get(
  * @access  Private
  */
 router.get(
-  '/:id',
-  driverValidator.getDriverValidation,
-  validate,
+  "/:id",
+  validate(driverValidator.getDriverValidation),
   driverController.getDriverById
 );
 
@@ -41,10 +42,9 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/',
-  authorize(['admin', 'manager']),
-  driverValidator.createDriverValidation,
-  validate,
+  "/",
+  authorize(["admin", "manager"]),
+  validate(driverValidator.createDriverValidation),
   driverController.createDriver
 );
 
@@ -54,10 +54,9 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id',
-  authorize(['admin', 'manager']),
-  driverValidator.updateDriverValidation,
-  validate,
+  "/:id",
+  authorize(["admin", "manager"]),
+  validate(driverValidator.updateDriverValidation),
   driverController.updateDriver
 );
 
@@ -67,10 +66,9 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-  '/:id',
-  authorize(['admin']),
-  driverValidator.deleteDriverValidation,
-  validate,
+  "/:id",
+  authorize(["admin"]),
+  validate(driverValidator.deleteDriverValidation),
   driverController.deleteDriver
 );
 
@@ -80,10 +78,9 @@ router.delete(
  * @access  Private (Admin, Manager)
  */
 router.patch(
-  '/:id/status',
-  authorize(['admin', 'manager']),
-  driverValidator.updateStatusValidation,
-  validate,
+  "/:id/status",
+  authorize(["admin", "manager"]),
+  validate(driverValidator.updateStatusValidation),
   driverController.updateDriverStatus
 );
 
@@ -93,9 +90,8 @@ router.patch(
  * @access  Private
  */
 router.get(
-  '/:id/availability',
-  driverValidator.getDriverValidation,
-  validate,
+  "/:id/availability",
+  validate(driverValidator.getDriverValidation),
   driverController.getAvailability
 );
 
@@ -105,10 +101,9 @@ router.get(
  * @access  Private (Admin, Manager, Driver)
  */
 router.put(
-  '/:id/availability',
-  authorize(['admin', 'manager', 'driver']),
-  driverValidator.updateAvailabilityValidation,
-  validate,
+  "/:id/availability",
+  authorize(["admin", "manager", "driver"]),
+  validate(driverValidator.updateAvailabilityValidation),
   driverController.updateAvailability
 );
 
@@ -118,10 +113,9 @@ router.put(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id/license',
-  authorize(['admin', 'manager']),
-  driverValidator.updateDriverValidation,
-  validate,
+  "/:id/license",
+  authorize(["admin", "manager"]),
+  validate(driverValidator.updateDriverValidation),
   driverController.updateLicense
 );
 
@@ -131,10 +125,9 @@ router.put(
  * @access  Private (Admin)
  */
 router.post(
-  '/:id/verify-license',
-  authorize(['admin']),
-  driverValidator.getDriverValidation,
-  validate,
+  "/:id/verify-license",
+  authorize(["admin"]),
+  validate(driverValidator.getDriverValidation),
   driverController.verifyLicense
 );
 
@@ -144,9 +137,8 @@ router.post(
  * @access  Private
  */
 router.get(
-  '/:id/performance',
-  driverValidator.getPerformanceValidation,
-  validate,
+  "/:id/performance",
+  validate(driverValidator.getPerformanceValidation),
   driverController.getPerformance
 );
 
@@ -156,9 +148,9 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/:id/photo',
-  authorize(['admin', 'manager']),
-  uploadSingle('photo'),
+  "/:id/photo",
+  authorize(["admin", "manager"]),
+  uploadSingle("photo"),
   driverController.uploadPhoto
 );
 
@@ -168,9 +160,9 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/:id/documents',
-  authorize(['admin', 'manager']),
-  uploadSingle('document'),
+  "/:id/documents",
+  authorize(["admin", "manager"]),
+  uploadSingle("document"),
   driverValidator.uploadDocumentValidation,
   validate,
   driverController.uploadDocument
@@ -182,7 +174,7 @@ router.post(
  * @access  Private
  */
 router.get(
-  '/:id/documents',
+  "/:id/documents",
   driverValidator.getDriverValidation,
   validate,
   driverController.getDocuments
@@ -194,8 +186,8 @@ router.get(
  * @access  Private (Admin)
  */
 router.post(
-  '/:id/link-user',
-  authorize(['admin']),
+  "/:id/link-user",
+  authorize(["admin"]),
   driverValidator.getDriverValidation,
   validate,
   driverController.linkUserAccount

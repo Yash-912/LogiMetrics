@@ -1,12 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const vehicleController = require('../controllers/vehicle.controller');
-const { vehicleValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize, checkPermission } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { uploadMultiple } = require('../middleware/upload.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const vehicleController = require("../controllers/vehicle.controller");
+const { vehicleValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize, checkPermission } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { uploadMultiple } = require("../middleware/upload.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -17,9 +17,8 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-  '/',
-  vehicleValidator.getVehicles,
-  validate,
+  "/",
+  validate(vehicleValidator.getVehicles),
   vehicleController.getVehicles
 );
 
@@ -29,9 +28,8 @@ router.get(
  * @access  Private
  */
 router.get(
-  '/:id',
-  vehicleValidator.getVehicleById,
-  validate,
+  "/:id",
+  validate(vehicleValidator.getVehicleById),
   vehicleController.getVehicleById
 );
 
@@ -41,10 +39,9 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/',
-  authorize(['admin', 'manager']),
-  vehicleValidator.createVehicle,
-  validate,
+  "/",
+  authorize(["admin", "manager"]),
+  validate(vehicleValidator.createVehicle),
   vehicleController.createVehicle
 );
 
@@ -54,10 +51,9 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id',
-  authorize(['admin', 'manager']),
-  vehicleValidator.updateVehicle,
-  validate,
+  "/:id",
+  authorize(["admin", "manager"]),
+  validate(vehicleValidator.updateVehicle),
   vehicleController.updateVehicle
 );
 
@@ -67,10 +63,9 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-  '/:id',
-  authorize(['admin']),
-  vehicleValidator.getVehicleById,
-  validate,
+  "/:id",
+  authorize(["admin"]),
+  validate(vehicleValidator.getVehicleById),
   vehicleController.deleteVehicle
 );
 
@@ -80,10 +75,9 @@ router.delete(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id/status',
-  authorize(['admin', 'manager']),
-  vehicleValidator.updateStatus,
-  validate,
+  "/:id/status",
+  authorize(["admin", "manager"]),
+  validate(vehicleValidator.updateStatus),
   vehicleController.updateVehicleStatus
 );
 
@@ -93,10 +87,9 @@ router.put(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-  '/:id/assign-driver',
-  authorize(['admin', 'manager', 'dispatcher']),
-  vehicleValidator.assignDriver,
-  validate,
+  "/:id/assign-driver",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(vehicleValidator.assignDriver),
   vehicleController.assignDriver
 );
 
@@ -106,10 +99,9 @@ router.put(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-  '/:id/unassign-driver',
-  authorize(['admin', 'manager', 'dispatcher']),
-  vehicleValidator.getVehicleById,
-  validate,
+  "/:id/unassign-driver",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(vehicleValidator.getVehicleById),
   vehicleController.unassignDriver
 );
 
@@ -119,9 +111,8 @@ router.put(
  * @access  Private
  */
 router.get(
-  '/:id/maintenance',
-  vehicleValidator.getVehicleById,
-  validate,
+  "/:id/maintenance",
+  validate(vehicleValidator.getVehicleById),
   vehicleController.getMaintenanceRecords
 );
 
@@ -131,10 +122,9 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/:id/maintenance',
-  authorize(['admin', 'manager']),
-  vehicleValidator.addMaintenance,
-  validate,
+  "/:id/maintenance",
+  authorize(["admin", "manager"]),
+  validate(vehicleValidator.addMaintenance),
   vehicleController.addMaintenanceRecord
 );
 
@@ -144,10 +134,9 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id/maintenance/:recordId',
-  authorize(['admin', 'manager']),
-  vehicleValidator.updateMaintenance,
-  validate,
+  "/:id/maintenance/:recordId",
+  authorize(["admin", "manager"]),
+  validate(vehicleValidator.updateMaintenance),
   vehicleController.updateMaintenanceRecord
 );
 
@@ -157,9 +146,8 @@ router.put(
  * @access  Private
  */
 router.get(
-  '/:id/fuel',
-  vehicleValidator.getVehicleById,
-  validate,
+  "/:id/fuel",
+  validate(vehicleValidator.getVehicleById),
   vehicleController.getFuelLogs
 );
 
@@ -169,10 +157,9 @@ router.get(
  * @access  Private (Admin, Manager, Driver)
  */
 router.post(
-  '/:id/fuel',
-  authorize(['admin', 'manager', 'driver']),
-  vehicleValidator.addFuelLog,
-  validate,
+  "/:id/fuel",
+  authorize(["admin", "manager", "driver"]),
+  validate(vehicleValidator.addFuelLog),
   vehicleController.addFuelLog
 );
 
@@ -182,9 +169,8 @@ router.post(
  * @access  Private
  */
 router.get(
-  '/:id/telemetry',
-  vehicleValidator.getTelemetry,
-  validate,
+  "/:id/telemetry",
+  validate(vehicleValidator.getTelemetry),
   vehicleController.getTelemetry
 );
 
@@ -194,9 +180,9 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/:id/documents',
-  authorize(['admin', 'manager']),
-  uploadMultiple('documents', 10),
+  "/:id/documents",
+  authorize(["admin", "manager"]),
+  uploadMultiple("documents", 10),
   vehicleController.uploadDocuments
 );
 
