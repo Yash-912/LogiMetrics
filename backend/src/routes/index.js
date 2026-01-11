@@ -23,6 +23,7 @@ const documentRoutes = require('./document.routes');
 const pricingRoutes = require('./pricing.routes');
 const adminRoutes = require('./admin.routes');
 const webhookRoutes = require('./webhook.routes');
+const accidentRoutes = require('./accident.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -41,6 +42,7 @@ router.use('/documents', documentRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/admin', adminRoutes);
 router.use('/webhooks', webhookRoutes);
+router.use('/accidents', accidentRoutes);
 
 // API health check
 router.get('/health', (req, res) => {
@@ -74,7 +76,8 @@ router.get('/', (req, res) => {
             documents: '/api/documents',
             pricing: '/api/pricing',
             admin: '/api/admin',
-            webhooks: '/api/webhooks'
+            webhooks: '/api/webhooks',
+            accidents: '/api/accidents'
         }
     });
 });

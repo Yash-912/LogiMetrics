@@ -16,6 +16,8 @@ const LiveTracking = require("./LiveTracking");
 const ShipmentEvent = require("./ShipmentEvent");
 const VehicleTelemetry = require("./VehicleTelemetry");
 const AuditLog = require("./AuditLog");
+const AccidentZone = require("./AccidentZone");
+const LiveTrackingAlert = require("./LiveTrackingAlert");
 
 module.exports = {
   User,
@@ -31,4 +33,6 @@ module.exports = {
   ShipmentEvent,
   VehicleTelemetry,
   AuditLog,
+  AccidentZone,
+  LiveTrackingAlert,
 };
