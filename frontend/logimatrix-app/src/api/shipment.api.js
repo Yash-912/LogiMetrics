@@ -166,8 +166,10 @@ export const trackShipment = async (trackingNumber) => {
         }
         return shipment;
     }
-    const response = await api.get(`/public/track/${trackingNumber}`);
-    return response.data.data;
+    const response = await api.get(`/shipments/${trackingNumber}/track`);
+    // The backend returns { shipment, events, currentLocation }
+    // We want the whole object because it contains the invoice info in shipment.invoiceId
+    return response.data.data.shipment;
 };
 
 /**

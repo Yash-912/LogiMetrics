@@ -32,3 +32,6 @@ export * from './tracking.api';
 export * from './admin.api';
 export * from './location.api';
 export * from './transaction.api';
+export * from './payment.api';
+
+export { default as paymentApi } from './payment.api';

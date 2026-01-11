@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import {
     Truck, MapPin, CheckCircle, Clock, Navigation,
-    Phone, Package, User, LogOut, ChevronRight
+    Phone, Package, User, LogOut, ChevronRight, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -33,26 +33,78 @@ export default function DriverPortalPage() {
         loadDriverShipments();
     }, []);
 
+    // Hardcoded demo shipments for driver portal
+    const DEMO_SHIPMENTS = [
+        {
+            id: 'demo_driver_1',
+            trackingNumber: 'LM-DRV-001',
+            status: 'assigned',
+            pickupAddress: '456 Business Park, Andheri East',
+            pickupCity: 'Mumbai',
+            pickupState: 'Maharashtra',
+            deliveryAddress: '789 IT Hub, Powai',
+            deliveryCity: 'Mumbai',
+            deliveryState: 'Maharashtra',
+            customerPhone: '+91 98765 43210',
+            packageType: 'Electronics',
+            weight: 5,
+        },
+        {
+            id: 'demo_driver_2',
+            trackingNumber: 'LM-DRV-002',
+            status: 'in_transit',
+            pickupAddress: '123 Warehouse Zone, Bhiwandi',
+            pickupCity: 'Thane',
+            pickupState: 'Maharashtra',
+            deliveryAddress: '555 Connaught Place',
+            deliveryCity: 'New Delhi',
+            deliveryState: 'Delhi',
+            customerPhone: '+91 87654 32109',
+            packageType: 'Furniture',
+            weight: 25,
+        },
+        {
+            id: 'demo_driver_3',
+            trackingNumber: 'LM-DRV-003',
+            status: 'picked_up',
+            pickupAddress: '999 Industrial Area, Peenya',
+            pickupCity: 'Bangalore',
+            pickupState: 'Karnataka',
+            deliveryAddress: '111 Tech Park, Whitefield',
+            deliveryCity: 'Bangalore',
+            deliveryState: 'Karnataka',
+            customerPhone: '+91 76543 21098',
+            packageType: 'Documents',
+            weight: 1,
+        },
+    ];
+
     const loadDriverShipments = async () => {
         setLoading(true);
         try {
-            // Simulate fetching assigned shipments for this driver
-            // querying assignments for "current driver"
+            // Try to fetch from API
             const response = await getShipments();
             const allShipments = response.data?.shipments || [];
 
             // Filter shipments that are "assigned" or in progress
-            // For mock demo, we'll just take the first few 'pending' or 'in_transit' ones
-            const relevant = allShipments.filter(s =>
+            let relevant = allShipments.filter(s =>
                 ['assigned', 'picked_up', 'in_transit', 'out_for_delivery'].includes(s.status)
             );
+
+            // If no real shipments, use demo data
+            if (relevant.length === 0) {
+                relevant = DEMO_SHIPMENTS;
+            }
 
             if (relevant.length > 0) {
                 setActiveShipment(relevant[0]); // Pick the first active one
                 setAssignedShipments(relevant.slice(1));
             }
         } catch (err) {
-            console.error('Failed to load active shipments', err);
+            console.error('Failed to load active shipments, using demo data', err);
+            // Fallback to demo data on error
+            setActiveShipment(DEMO_SHIPMENTS[0]);
+            setAssignedShipments(DEMO_SHIPMENTS.slice(1));
         } finally {
             setLoading(false);
         }
@@ -71,7 +123,7 @@ export default function DriverPortalPage() {
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        navigate('/');
     };
 
     return (
@@ -217,6 +269,38 @@ export default function DriverPortalPage() {
                     </div>
                 )}
             </main>
+
+            {/* Bottom Navigation */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-4 py-3 z-50">
+                <div className="flex justify-around items-center">
+                    <button
+                        className="flex flex-col items-center gap-1 text-cyan-400"
+                    >
+                        <Truck className="w-5 h-5" />
+                        <span className="text-xs">Jobs</span>
+                    </button>
+                    <button
+                        onClick={() => navigate('/accidents')}
+                        className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="text-xs">Safety Map</span>
+                    </button>
+                    <button
+                        onClick={() => navigate('/tracking/live')}
+                        className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <Navigation className="w-5 h-5" />
+                        <span className="text-xs">Live Track</span>
+                    </button>
+                    <button
+                        className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <User className="w-5 h-5" />
+                        <span className="text-xs">Profile</span>
+                    </button>
+                </div>
+            </nav>
         </div>
     );
 }

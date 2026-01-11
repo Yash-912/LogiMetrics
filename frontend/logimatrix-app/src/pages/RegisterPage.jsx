@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -78,6 +78,7 @@ const InputField = ({ icon: Icon, label, name, type = 'text', placeholder, error
 
 const RegisterPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { isAuthenticated, isLoading, register: authRegister } = useAuth();
 
     const [currentStep, setCurrentStep] = useState(1);
@@ -108,7 +109,17 @@ const RegisterPage = () => {
     const [apiError, setApiError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    // ... useEffect unchanged ...
+    // Check for role in URL query parameter and pre-select it
+    useEffect(() => {
+        const roleFromUrl = searchParams.get('role');
+        if (roleFromUrl && ROLES.some(r => r.id === roleFromUrl)) {
+            setFormData(prev => ({ ...prev, role: roleFromUrl }));
+            // If role is pre-selected, skip to step 2 (role is already set)
+            // Actually, keep on step 1 but the role will be pre-filled when they reach step 2
+        }
+    }, [searchParams]);
+
+    // Redirect if already authenticated
     useEffect(() => {
         if (!isLoading && isAuthenticated) {
             navigate('/dashboard', { replace: true });

@@ -14,6 +14,8 @@ import MoversPackers from '@/pages/MoversPackers';
 import TruckPartners from '@/pages/TruckPartners';
 import Enterprise from '@/pages/Enterprise';
 import AdminDashboard from '@/pages/AdminDashboard';
+import BusinessDashboard from '@/pages/BusinessDashboard';
+import TransporterDashboard from '@/pages/TransporterDashboard';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
@@ -31,6 +33,37 @@ import AuditLogsPage from '@/pages/AuditLogsPage';
 import LocationManagementPage from '@/pages/LocationManagementPage';
 import TransactionsPage from '@/pages/TransactionsPage';
 import AccidentHeatmap from '@/pages/AccidentHeatmap';
+
+// Role-Based Dashboard Router
+const RoleBasedDashboard = ({ onLogout }) => {
+  const { user } = useAuth();
+  const role = user?.role;
+
+  // Route to appropriate dashboard based on role
+  switch (role) {
+    // Admin roles -> Full Admin Dashboard
+    case 'super_admin':
+    case 'admin':
+      return <AdminDashboard onLogout={onLogout} />;
+
+    // Fleet Owner / Transporter roles -> Transporter Dashboard
+    case 'dispatcher':
+    case 'transporter':
+      return <TransporterDashboard />;
+
+    // Driver role -> Driver Portal
+    case 'driver':
+      return <DriverPortalPage />;
+
+    // Business / Shipper roles -> Business Dashboard
+    case 'manager':
+    case 'shipper':
+    case 'user':
+    case 'customer':
+    default:
+      return <BusinessDashboard />;
+  }
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -104,9 +137,23 @@ const Navbar = () => {
               Dashboard
             </Button>
           ) : (
-            <Button variant={scrolled ? 'primary' : 'accent'} size="sm" onClick={handleLoginClick}>
-              Log In
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLoginClick}
+                className={scrolled ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'}
+              >
+                Log In
+              </Button>
+              <Button
+                variant={scrolled ? 'primary' : 'accent'}
+                size="sm"
+                onClick={() => navigate('/register')}
+              >
+                Sign Up
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -163,12 +210,28 @@ const AppContent = () => {
           }
         />
 
-        {/* Protected Routes */}
+        {/* Protected Routes - Role-Based Dashboard */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <AdminDashboard onLogout={logout} />
+              <RoleBasedDashboard onLogout={logout} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/business"
+          element={
+            <ProtectedRoute>
+              <BusinessDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/transporter"
+          element={
+            <ProtectedRoute>
+              <TransporterDashboard />
             </ProtectedRoute>
           }
         />
