@@ -10,6 +10,7 @@ import {
     Maximize2, RefreshCw, AlertTriangle, Layers, User
 } from 'lucide-react';
 import L from 'leaflet';
+import { trackingApi } from '@/api';
 
 // Fix for default Leaflet marker icons in React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -48,57 +49,37 @@ export default function LiveTrackingPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState('all'); // all, active, delayed
 
-    // Mock Data - Simulating backend response
+    // Fetch Real Data from API
     useEffect(() => {
-        const loadMockData = () => {
-            setIsRefreshing(true);
-
-            // In real app: const res = await axios.get('/api/tracking/live');
-            const mockData = [
-                {
-                    id: 'TRK-001',
-                    driver: 'Rajesh Kumar',
-                    status: 'moving', // moving, stopped, idle
-                    speed: 45,
-                    location: [19.0760, 72.8777], // Mumbai
-                    destination: [18.5204, 73.8567], // Pune
-                    route: [[19.0760, 72.8777], [18.9000, 73.0000], [18.7000, 73.4000], [18.5204, 73.8567]],
-                    lastUpdate: new Date().toISOString(),
-                    temp: 24, // for reefer trucks
-                    battery: 85
-                },
-                {
-                    id: 'TRK-002',
-                    driver: 'Vikram Singh',
-                    status: 'stopped',
-                    speed: 0,
-                    location: [28.7041, 77.1025], // Delhi
-                    destination: [26.9124, 75.7873], // Jaipur
-                    route: [[28.7041, 77.1025], [28.0000, 76.5000], [27.5000, 76.0000], [26.9124, 75.7873]],
-                    lastUpdate: new Date().toISOString(),
-                    temp: null,
-                    battery: 12
-                },
-                {
-                    id: 'TRK-003',
-                    driver: 'Amit Patel',
-                    status: 'moving',
-                    speed: 62,
-                    location: [12.9716, 77.5946], // Bangalore
-                    destination: [13.0827, 80.2707], // Chennai
-                    route: [[12.9716, 77.5946], [12.9000, 78.5000], [13.0000, 79.5000], [13.0827, 80.2707]],
-                    lastUpdate: new Date().toISOString(),
-                    temp: 18,
-                    battery: 92
+        const fetchFleetData = async () => {
+            try {
+                setIsRefreshing(true);
+                const response = await trackingApi.getActiveVehicles();
+                if (response.success && response.data) {
+                    // Transform API data to Component format
+                    const mappedVehicles = response.data.map(v => ({
+                        id: v.vehicleId,
+                        driver: v.driverId || 'Unassigned',
+                        status: v.status || (v.speed > 0 ? 'moving' : 'idle'),
+                        speed: v.speed || 0,
+                        location: [v.coordinates.coordinates[1], v.coordinates.coordinates[0]], // [lat, lng]
+                        destination: null, // Backend doesn't provide this yet
+                        route: [], // Backend polyline not yet implemented
+                        lastUpdate: v.timestamp,
+                        temp: v.metadata?.engineTemp,
+                        battery: v.metadata?.batteryLevel
+                    }));
+                    setVehicles(mappedVehicles);
                 }
-            ];
-
-            setVehicles(mockData);
-            setTimeout(() => setIsRefreshing(false), 800);
+            } catch (err) {
+                console.error("Failed to fetch fleet data", err);
+            } finally {
+                setIsRefreshing(false);
+            }
         };
 
-        loadMockData();
-        const interval = setInterval(loadMockData, 10000); // Poll every 10s
+        fetchFleetData();
+        const interval = setInterval(fetchFleetData, 10000); // Poll every 10s
         return () => clearInterval(interval);
     }, []);
 
@@ -150,8 +131,8 @@ export default function LiveTrackingPage() {
                                 key={mode}
                                 onClick={() => setViewMode(mode)}
                                 className={`flex-1 py-1.5 text-xs font-medium rounded capitalize transition-all ${viewMode === mode
-                                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
                                     }`}
                             >
                                 {mode}

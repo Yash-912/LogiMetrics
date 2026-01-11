@@ -1,40 +1,57 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DashboardWidget from './DashboardWidget';
 import TrackingMap from '../tracking/TrackingMap';
-import { fleetData } from '../../data/dashboardMockData';
+import * as trackingApi from '@/api/tracking.api';
 import { Truck, MapPin, Navigation, Clock, Zap } from 'lucide-react';
 
 /**
  * Live Fleet Tracking Widget
  * Real-time map showing all fleet vehicles with status overlays
  */
-const LiveFleetTrackingWidget = ({ data = fleetData, onRefresh, height = 400 }) => {
+const LiveFleetTrackingWidget = ({ onRefresh, height = 400 }) => {
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [mapReady, setMapReady] = useState(false);
+    const [vehiclesData, setVehiclesData] = useState([]);
+
+    // Fetch live tracking data
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const result = await trackingApi.getActiveVehicles();
+                if (result.success && Array.isArray(result.data)) {
+                    setVehiclesData(result.data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch fleet location:", error);
+            }
+        };
+
+        fetchData();
+        const interval = setInterval(fetchData, 10000); // Refresh every 10s
+        return () => clearInterval(interval);
+    }, [onRefresh]);
 
     // Transform vehicle data for TrackingMap component
     const vehicles = useMemo(() => {
-        return data.vehicles.map(v => ({
-            id: v.id,
-            name: v.name,
-            driver: v.driver,
+        return vehiclesData.map(v => ({
+            id: v.vehicleId,
+            name: v.vehicleId, // Usually map to vehicle name from another store, but ID works
+            driver: v.driverId || 'Unassigned',
             position: {
-                lat: v.location.lat,
-                lng: v.location.lng
+                lat: v.coordinates?.coordinates[1] || 0,
+                lng: v.coordinates?.coordinates[0] || 0
             },
-            speed: v.speed,
-            heading: Math.random() * 360, // Simulate heading
-            status: v.status === 'On Trip' ? 'moving' :
-                v.status === 'Available' ? 'idle' :
-                    v.status === 'Maintenance' ? 'alert' : 'offline',
+            speed: v.speed || 0,
+            heading: v.heading || 0,
+            status: v.isMoving ? 'moving' : (v.engineStatus === 'off' ? 'offline' : 'idle'),
             type: 'truck',
-            lastUpdate: new Date().toISOString(),
+            lastUpdate: v.timestamp || new Date().toISOString(),
             meta: {
-                assignment: v.heading,
-                vehicle: v.name
+                assignment: v.address || 'Unknown Location',
+                vehicle: v.vehicleId
             }
         }));
-    }, [data.vehicles]);
+    }, [vehiclesData]);
 
     // Calculate fleet stats
     const fleetStats = useMemo(() => {
@@ -59,6 +76,7 @@ const LiveFleetTrackingWidget = ({ data = fleetData, onRefresh, height = 400 }) 
             subtitle={`${fleetStats.active} active vehicles`}
             onRefresh={onRefresh}
             noPadding={true}
+            fullHeight={true}
             className="overflow-hidden"
         >
             <div className="relative" style={{ height }}>
@@ -123,9 +141,9 @@ const LiveFleetTrackingWidget = ({ data = fleetData, onRefresh, height = 400 }) 
                             </div>
 
                             <div className="space-y-2">
-                                <InfoRow icon={Truck} label="Driver" value={selectedVehicle.driver || 'Unassigned'} />
+                                <InfoRow icon={Truck} label="Driver" value={selectedVehicle.driver} />
                                 <InfoRow icon={Navigation} label="Speed" value={`${selectedVehicle.speed} km/h`} />
-                                <InfoRow icon={MapPin} label="Assignment" value={selectedVehicle.meta.assignment} />
+                                <InfoRow icon={MapPin} label="Location" value={selectedVehicle.meta.assignment} />
                                 <StatusIndicator status={selectedVehicle.status} />
                             </div>
                         </div>
@@ -148,7 +166,7 @@ const StatBadge = ({ icon: Icon, label, value, color }) => {
     };
 
     return (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-sm ${colorClasses[color]}`}>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-sm ${colorClasses[color] || colorClasses.slate}`}>
             <Icon className="w-4 h-4" />
             <div>
                 <p className="text-lg font-bold leading-none">{value}</p>
@@ -164,7 +182,7 @@ const InfoRow = ({ icon: Icon, label, value }) => (
         <span className="flex items-center gap-2 text-slate-400">
             <Icon className="w-3.5 h-3.5" /> {label}
         </span>
-        <span className="text-white">{value}</span>
+        <span className="text-white truncate max-w-[120px]" title={value}>{value}</span>
     </div>
 );
 

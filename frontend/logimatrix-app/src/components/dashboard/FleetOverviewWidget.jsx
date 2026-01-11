@@ -1,31 +1,87 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import DashboardWidget from './DashboardWidget';
 import { PieChart, GaugeChart } from '../charts';
-import { fleetData } from '../../data/dashboardMockData';
+import { fleetData as mockFleetData } from '../../data/dashboardMockData';
 import { Truck, Users, Wrench } from 'lucide-react';
+import { useFleetAnalytics } from '@/hooks/useDashboard';
 
 /**
  * Fleet Overview Widget
  * Shows vehicle status distribution and utilization
  */
-const FleetOverviewWidget = ({ data = fleetData, onRefresh }) => {
-    const { status, utilization, vehicles } = data;
+const FleetOverviewWidget = ({ onRefresh }) => {
+    const { data: apiData, isLoading, refetch } = useFleetAnalytics();
 
-    const totalVehicles = status.reduce((sum, s) => sum + s.value, 0);
-    const activeVehicles = status.find(s => s.name === 'On Trip')?.value || 0;
+    const handleRefresh = () => {
+        refetch();
+        onRefresh && onRefresh();
+    };
+
+    const processedData = useMemo(() => {
+        if (!apiData || !apiData.analytics) return mockFleetData;
+
+        const { vehicles = { byStatus: [], utilization: 0, total: 0 } } = apiData.analytics || {};
+
+        // Map status to colors
+        const getColor = (status) => {
+            switch (status.toLowerCase()) {
+                case 'in_use': return '#3B82F6';
+                case 'available': return '#10B981';
+                case 'maintenance': return '#F59E0B';
+                default: return '#64748B';
+            }
+        };
+
+        const getName = (status) => {
+            switch (status.toLowerCase()) {
+                case 'in_use': return 'On Trip';
+                case 'available': return 'Available';
+                case 'maintenance': return 'Maintenance';
+                default: return status;
+            }
+        };
+
+        const statusData = vehicles.byStatus.map(s => ({
+            name: getName(s.status),
+            value: s.count,
+            color: getColor(s.status)
+        }));
+
+        // If no data, fallback to mock structure to avoid crash
+        if (statusData.length === 0) return mockFleetData;
+
+        return {
+            status: statusData,
+            utilization: {
+                current: vehicles.utilization,
+                target: 80 // Hardcoded target
+            },
+            vehicles: {
+                total: vehicles.total
+            }
+        };
+    }, [apiData]);
+
+    const finalData = (processedData.status && processedData.status.length > 0)
+        ? processedData
+        : mockFleetData;
+
+    const totalVehicles = finalData.status.reduce((sum, s) => sum + s.value, 0);
+    const activeVehicles = finalData.status.find(s => s.name === 'On Trip')?.value || 0;
 
     return (
         <DashboardWidget
             title="Fleet Overview"
             subtitle={`${totalVehicles} total vehicles`}
-            onRefresh={onRefresh}
+            isLoading={isLoading}
+            onRefresh={handleRefresh}
         >
             <div className="grid grid-cols-2 gap-4">
                 {/* Status Distribution */}
                 <div>
                     <PieChart
-                        data={status}
-                        height={180}
+                        data={finalData.status}
+                        height={120}
                         donut={true}
                         showLegend={false}
                         centerValue={activeVehicles.toString()}
@@ -33,8 +89,8 @@ const FleetOverviewWidget = ({ data = fleetData, onRefresh }) => {
                     />
 
                     {/* Legend */}
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                        {status.map((item) => (
+                    <div className="mt-2 grid grid-cols-2 gap-1">
+                        {finalData.status.map((item) => (
                             <div key={item.name} className="flex items-center gap-2">
                                 <div
                                     className="w-2 h-2 rounded-full"
@@ -50,11 +106,11 @@ const FleetOverviewWidget = ({ data = fleetData, onRefresh }) => {
                 {/* Utilization Gauge */}
                 <div>
                     <GaugeChart
-                        value={utilization.current}
+                        value={finalData.utilization.current}
                         max={100}
-                        height={160}
+                        height={110}
                         label="Utilization"
-                        target={utilization.target}
+                        target={finalData.utilization.target}
                         dynamicColor={true}
                         thresholds={{ low: 50, medium: 70 }}
                     />
@@ -72,7 +128,7 @@ const FleetOverviewWidget = ({ data = fleetData, onRefresh }) => {
                                 <Users className="w-4 h-4" /> Available
                             </span>
                             <span className="text-green-400 font-medium">
-                                {status.find(s => s.name === 'Available')?.value || 0}
+                                {finalData.status.find(s => s.name === 'Available')?.value || 0}
                             </span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
@@ -80,7 +136,7 @@ const FleetOverviewWidget = ({ data = fleetData, onRefresh }) => {
                                 <Wrench className="w-4 h-4" /> Maintenance
                             </span>
                             <span className="text-amber-400 font-medium">
-                                {status.find(s => s.name === 'Maintenance')?.value || 0}
+                                {finalData.status.find(s => s.name === 'Maintenance')?.value || 0}
                             </span>
                         </div>
                     </div>

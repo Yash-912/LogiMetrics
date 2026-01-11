@@ -130,6 +130,55 @@ export const useDrivers = (params = {}) => {
     });
 };
 
+// Analytics Hooks
+export const useShipmentAnalytics = (params) => {
+    return useQuery({
+        queryKey: ['analytics', 'shipments', params],
+        queryFn: () => analyticsApi.getShipmentAnalytics(params),
+        staleTime: 1000 * 60 * 10,
+    });
+};
+
+export const useRevenueAnalytics = (params) => {
+    return useQuery({
+        queryKey: ['analytics', 'revenue', params],
+        queryFn: () => analyticsApi.getRevenueAnalytics(params),
+        staleTime: 1000 * 60 * 10,
+    });
+};
+
+export const useFleetAnalytics = (params) => {
+    return useQuery({
+        queryKey: ['analytics', 'fleet', params],
+        queryFn: () => analyticsApi.getVehicleAnalytics(params), // This maps to fleet endpoint
+        staleTime: 1000 * 60 * 10,
+    });
+};
+
+export const useDriverAnalytics = (params) => {
+    return useQuery({
+        queryKey: ['analytics', 'drivers', params],
+        queryFn: () => analyticsApi.getDriverAnalytics(params),
+        staleTime: 1000 * 60 * 10,
+    });
+};
+
+export const useTrendAnalysis = (params) => {
+    return useQuery({
+        queryKey: ['analytics', 'trends', params],
+        queryFn: () => analyticsApi.getTrendAnalysis(params),
+        staleTime: 1000 * 60 * 10,
+    });
+};
+
+export const useRouteOptimization = (params) => {
+    return useQuery({
+        queryKey: ['analytics', 'routes', params],
+        queryFn: () => analyticsApi.getRouteOptimization(params),
+        staleTime: 1000 * 60 * 10,
+    });
+};
+
 export default {
     useDashboardStats,
     useRecentShipments,
@@ -141,4 +190,10 @@ export default {
     useUpdateShipmentStatus,
     useVehicles,
     useDrivers,
+    useShipmentAnalytics,
+    useRevenueAnalytics,
+    useFleetAnalytics,
+    useDriverAnalytics,
+    useTrendAnalysis,
+    useRouteOptimization,
 };

@@ -24,6 +24,7 @@ const DashboardWidget = ({
             className={`
                 bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl
                 transition-all duration-300 hover:border-slate-700 hover:shadow-lg hover:shadow-cyan-500/5
+                flex flex-col
                 ${fullHeight ? 'h-full' : ''}
                 ${className}
             `}
@@ -71,7 +72,7 @@ const DashboardWidget = ({
             )}
 
             {/* Content */}
-            <div className={noPadding ? '' : 'p-5'}>
+            <div className={`flex-1 min-h-0 ${noPadding ? '' : 'p-5'}`}>
                 {loading && !children ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="flex flex-col items-center gap-3">
