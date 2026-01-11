@@ -24,7 +24,7 @@ export const getShipmentAnalytics = async (params = {}) => {
  * Get vehicle utilization analytics
  */
 export const getVehicleAnalytics = async (params = {}) => {
-    const response = await api.get('/analytics/vehicles', { params });
+    const response = await api.get('/analytics/fleet', { params });
     return response.data.data;
 };
 

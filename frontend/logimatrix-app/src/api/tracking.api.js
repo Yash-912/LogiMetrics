@@ -50,7 +50,7 @@ const trackingApi = {
      * Get all active vehicles with their locations
      */
     getActiveVehicles: async (params = {}) => {
-        const response = await api.get('/tracking/vehicles/active', { params });
+        const response = await api.get('/tracking/live', { params });
         return response.data;
     },
 

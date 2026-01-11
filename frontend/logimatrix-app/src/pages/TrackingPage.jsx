@@ -9,6 +9,7 @@ import {
     Search, Package, MapPin, Truck, CheckCircle, Clock,
     AlertCircle, ArrowRight, Calendar, Phone, User
 } from 'lucide-react';
+import { shipmentApi } from '@/api';
 
 // Status timeline configuration
 const STATUS_TIMELINE = [
@@ -46,20 +47,11 @@ export default function TrackingPage() {
 
         try {
             // Simulate API call - check localStorage for mock shipments
-            await new Promise(r => setTimeout(r, 1000));
-
-            const shipments = JSON.parse(localStorage.getItem('mock_shipments') || '[]');
-            const found = shipments.find(s =>
-                s.trackingNumber?.toLowerCase() === trackingNumber.toLowerCase().trim()
-            );
-
-            if (found) {
-                setResult(found);
-            } else {
-                setError('No shipment found with this tracking number. Please check and try again.');
-            }
+            const data = await shipmentApi.trackShipment(trackingNumber);
+            setResult(data);
         } catch (err) {
-            setError('Failed to track shipment. Please try again.');
+            console.error(err);
+            setError('No shipment found with this tracking number. Please check and try again.');
         } finally {
             setLoading(false);
         }
@@ -195,8 +187,8 @@ export default function TrackingPage() {
 
                                                     {/* Icon */}
                                                     <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all ${isCompleted
-                                                            ? 'bg-cyan-500 text-white'
-                                                            : 'bg-slate-700 text-gray-500'
+                                                        ? 'bg-cyan-500 text-white'
+                                                        : 'bg-slate-700 text-gray-500'
                                                         } ${isCurrent ? 'ring-4 ring-cyan-500/30' : ''}`}>
                                                         <Icon className="w-5 h-5" />
                                                     </div>

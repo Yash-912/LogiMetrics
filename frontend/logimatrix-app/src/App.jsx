@@ -30,6 +30,7 @@ import CompanySettingsPage from '@/pages/CompanySettingsPage';
 import AuditLogsPage from '@/pages/AuditLogsPage';
 import LocationManagementPage from '@/pages/LocationManagementPage';
 import TransactionsPage from '@/pages/TransactionsPage';
+import AccidentHeatmap from '@/pages/AccidentHeatmap';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -256,6 +257,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <TransactionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accidents"
+          element={
+            <ProtectedRoute>
+              <AccidentHeatmap />
             </ProtectedRoute>
           }
         />

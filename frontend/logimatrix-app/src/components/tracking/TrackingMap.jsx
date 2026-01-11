@@ -1,212 +1,158 @@
-/**
- * TrackingMap Component
- * Displays a map with vehicle/shipment tracking markers
- * Uses a simple placeholder map design (can be replaced with Mapbox/Google Maps)
- */
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { Truck, Navigation, AlertTriangle } from 'lucide-react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Truck, Navigation, Circle } from 'lucide-react';
+// Fix for default Leaflet icon not finding images in some build steps
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
-// Map marker colors by status
-const statusColors = {
-    'On Trip': '#3B82F6',
-    'Available': '#10B981',
-    'Maintenance': '#F59E0B',
-    'Offline': '#64748B',
-    'moving': '#3B82F6',
-    'idle': '#10B981',
-    'stopped': '#F59E0B'
+// Component to handle auto-fitting bounds
+const MapBounds = ({ vehicles }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (vehicles.length > 0) {
+            const bounds = L.latLngBounds(vehicles.map(v => {
+                const lat = v.position?.lat || v.lat || 0;
+                const lng = v.position?.lng || v.lng || 0;
+                return [lat, lng];
+            }));
+
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+    }, [vehicles, map]);
+
+    return null;
 };
 
-// Vehicle Marker Component
-const VehicleMarker = ({ vehicle, onClick, isSelected }) => {
-    const color = statusColors[vehicle.status] || '#64748B';
+// Create custom DivIcon for vehicles
+const createVehicleIcon = (vehicle, isSelected) => {
+    const color = vehicle.status === 'moving' ? '#3B82F6' :
+        vehicle.status === 'idle' ? '#10B981' :
+            vehicle.status === 'alert' ? '#EF4444' : '#64748B';
 
-    return (
-        <div
-            onClick={() => onClick?.(vehicle)}
-            className={`
-                absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer
-                transition-all duration-300 hover:scale-110 z-10
-                ${isSelected ? 'z-20 scale-125' : ''}
-            `}
-            style={{
-                left: `${((vehicle.location?.lng || vehicle.lng || 72.877) - 68) / 24 * 100}%`,
-                top: `${100 - ((vehicle.location?.lat || vehicle.lat || 19.076) - 8) / 22 * 100}%`
-            }}
-        >
-            <div className={`relative ${isSelected ? 'animate-pulse' : ''}`}>
-                {/* Pulse ring */}
-                {vehicle.speed > 0 && (
-                    <div
-                        className="absolute inset-0 rounded-full animate-ping opacity-50"
-                        style={{ backgroundColor: color }}
-                    />
-                )}
-
-                {/* Marker body */}
-                <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white"
-                    style={{ backgroundColor: color }}
-                >
-                    <Truck className="w-4 h-4 text-white" />
-                </div>
-
-                {/* Vehicle ID label */}
-                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <span className="text-[10px] px-1 py-0.5 rounded bg-slate-900/80 text-white font-medium">
-                        {vehicle.id || vehicle.name}
-                    </span>
-                </div>
+    const iconHtml = renderToStaticMarkup(
+        <div className={`relative flex items-center justify-center ${isSelected ? 'scale-125' : ''}`}>
+            {vehicle.status === 'moving' && (
+                <div className="absolute inset-0 rounded-full animate-ping opacity-50" style={{ backgroundColor: color, width: '100%', height: '100%' }} />
+            )}
+            <div
+                className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg transition-transform"
+                style={{ backgroundColor: color, transform: `rotate(${vehicle.heading || 0}deg)` }}
+            >
+                <Truck className="w-5 h-5 text-white" />
             </div>
+            {isSelected && (
+                <div className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full border border-white" />
+            )}
         </div>
     );
+
+    return L.divIcon({
+        html: iconHtml,
+        className: 'custom-vehicle-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -20]
+    });
 };
 
-// Map Grid Lines
-const MapGrid = () => (
-    <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
-        {/* Horizontal lines */}
-        {[...Array(6)].map((_, i) => (
-            <line
-                key={`h-${i}`}
-                x1="0"
-                y1={`${(i + 1) * (100 / 7)}%`}
-                x2="100%"
-                y2={`${(i + 1) * (100 / 7)}%`}
-                stroke="#94A3B8"
-                strokeWidth="1"
-            />
-        ))}
-        {/* Vertical lines */}
-        {[...Array(8)].map((_, i) => (
-            <line
-                key={`v-${i}`}
-                x1={`${(i + 1) * (100 / 9)}%`}
-                y1="0"
-                x2={`${(i + 1) * (100 / 9)}%`}
-                y2="100%"
-                stroke="#94A3B8"
-                strokeWidth="1"
-            />
-        ))}
-    </svg>
-);
-
-// Main TrackingMap Component
 const TrackingMap = ({
     vehicles = [],
     height = 400,
-    onVehicleClick,
+    onVehicleSelect,
     selectedVehicleId,
-    showControls = true,
-    className = ''
+    center = [20.5937, 78.9629], // India Center
+    zoom = 5
 }) => {
-    const [zoom, setZoom] = useState(1);
-    const [hoveredVehicle, setHoveredVehicle] = useState(null);
-
-    // Indian city markers for reference
-    const cityMarkers = useMemo(() => [
-        { name: 'Mumbai', lat: 19.076, lng: 72.877 },
-        { name: 'Delhi', lat: 28.613, lng: 77.209 },
-        { name: 'Bangalore', lat: 12.971, lng: 77.594 },
-        { name: 'Chennai', lat: 13.082, lng: 80.270 },
-        { name: 'Kolkata', lat: 22.572, lng: 88.363 },
-        { name: 'Hyderabad', lat: 17.385, lng: 78.486 }
-    ], []);
+    // Check if we have valid vehicles to fit bounds
+    const hasVehicles = vehicles.length > 0;
 
     return (
-        <div
-            className={`relative overflow-hidden rounded-xl bg-slate-800/50 border border-slate-700 ${className}`}
-            style={{ height }}
-        >
-            {/* Map Background */}
-            <div
-                className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
-                style={{ transform: `scale(${zoom})` }}
+        <div className="rounded-xl overflow-hidden border border-slate-700 shadow-lg relative z-0" style={{ height }}>
+            <MapContainer
+                center={center}
+                zoom={zoom}
+                style={{ height: '100%', width: '100%' }}
+                className="z-0"
             >
-                {/* Grid pattern */}
-                <MapGrid />
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                />
 
-                {/* India outline (simplified) */}
-                <div className="absolute inset-4 border-2 border-dashed border-slate-600/30 rounded-xl" />
+                {hasVehicles && <MapBounds vehicles={vehicles} />}
 
-                {/* City markers */}
-                {cityMarkers.map(city => (
-                    <div
-                        key={city.name}
-                        className="absolute transform -translate-x-1/2 -translate-y-1/2 opacity-40"
-                        style={{
-                            left: `${(city.lng - 68) / 24 * 100}%`,
-                            top: `${100 - (city.lat - 8) / 22 * 100}%`
-                        }}
-                    >
-                        <div className="flex flex-col items-center">
-                            <Circle className="w-2 h-2 text-cyan-400 fill-cyan-400" />
-                            <span className="text-[9px] text-slate-400 mt-0.5">{city.name}</span>
-                        </div>
+                {vehicles.map(vehicle => {
+                    const lat = vehicle.position?.lat || vehicle.lat;
+                    const lng = vehicle.position?.lng || vehicle.lng;
+
+                    if (!lat || !lng) return null;
+
+                    return (
+                        <Marker
+                            key={vehicle.id}
+                            position={[lat, lng]}
+                            icon={createVehicleIcon(vehicle, selectedVehicleId === vehicle.id)}
+                            eventHandlers={{
+                                click: () => onVehicleSelect && onVehicleSelect(vehicle.id),
+                            }}
+                        >
+                            <Popup className="custom-popup">
+                                <div className="p-2 min-w-[150px]">
+                                    <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                                        <Truck className="w-4 h-4" />
+                                        {vehicle.name || vehicle.id}
+                                    </h4>
+                                    <div className="text-xs space-y-1 text-slate-600">
+                                        <p className="flex justify-between">
+                                            <span>Status:</span>
+                                            <span className={`font-semibold ${vehicle.status === 'moving' ? 'text-blue-600' :
+                                                    vehicle.status === 'idle' ? 'text-green-600' : 'text-slate-600'
+                                                }`}>
+                                                {vehicle.status?.toUpperCase()}
+                                            </span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                            <span>Speed:</span>
+                                            <span>{Math.round(vehicle.speed || 0)} km/h</span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                            <span>Driver:</span>
+                                            <span>{vehicle.driver || 'N/A'}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    );
+                })}
+            </MapContainer>
+
+            {/* Legend Overlay */}
+            <div className="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-sm p-3 rounded-lg border border-slate-700 text-xs">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span className="text-slate-300">Moving</span>
                     </div>
-                ))}
-
-                {/* Vehicle Markers */}
-                {vehicles.map(vehicle => (
-                    <VehicleMarker
-                        key={vehicle.id}
-                        vehicle={vehicle}
-                        onClick={onVehicleClick}
-                        isSelected={selectedVehicleId === vehicle.id}
-                    />
-                ))}
-            </div>
-
-            {/* Map Controls */}
-            {showControls && (
-                <div className="absolute top-3 right-3 flex flex-col gap-1 z-30">
-                    <button
-                        onClick={() => setZoom(z => Math.min(z + 0.2, 2))}
-                        className="w-8 h-8 rounded bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 flex items-center justify-center"
-                    >
-                        +
-                    </button>
-                    <button
-                        onClick={() => setZoom(z => Math.max(z - 0.2, 0.5))}
-                        className="w-8 h-8 rounded bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 flex items-center justify-center"
-                    >
-                        −
-                    </button>
-                    <button
-                        onClick={() => setZoom(1)}
-                        className="w-8 h-8 rounded bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 flex items-center justify-center text-xs"
-                    >
-                        ⌂
-                    </button>
-                </div>
-            )}
-
-            {/* Legend */}
-            <div className="absolute bottom-3 left-3 flex gap-3 z-30">
-                {[
-                    { label: 'On Trip', color: '#3B82F6' },
-                    { label: 'Available', color: '#10B981' },
-                    { label: 'Maintenance', color: '#F59E0B' },
-                    { label: 'Offline', color: '#64748B' }
-                ].map(item => (
-                    <div key={item.label} className="flex items-center gap-1">
-                        <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: item.color }}
-                        />
-                        <span className="text-[10px] text-slate-400">{item.label}</span>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span className="text-slate-300">Idle</span>
                     </div>
-                ))}
-            </div>
-
-            {/* Vehicle count */}
-            <div className="absolute top-3 left-3 z-30">
-                <div className="px-2 py-1 rounded bg-slate-800/80 border border-slate-700">
-                    <span className="text-xs text-slate-400">
-                        <span className="text-cyan-400 font-semibold">{vehicles.length}</span> vehicles tracked
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span className="text-slate-300">Alert</span>
+                    </div>
                 </div>
             </div>
         </div>

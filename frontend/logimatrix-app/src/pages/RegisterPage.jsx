@@ -16,32 +16,39 @@ import {
 
 const STEPS = [
     { id: 1, title: 'Personal Info', icon: User },
-    { id: 2, title: 'Company Info', icon: Building2 },
-    { id: 3, title: 'Role Selection', icon: Briefcase },
+    { id: 2, title: 'Role Selection', icon: Briefcase },
+    { id: 3, title: 'Company Info', icon: Building2 },
 ];
 
-// Roles matching MongoDB schema: super_admin, manager, dispatcher, driver
+// Roles matching MongoDB schema
 const ROLES = [
     {
-        id: 'manager',
-        title: 'Manager / Admin',
-        description: 'Full access to manage shipments, vehicles, drivers and analytics',
-        icon: Briefcase,
+        id: 'shipper',
+        title: 'Business / Shipper',
+        description: 'Create shipment requests and track orders',
+        icon: Package,
         color: 'from-blue-500 to-cyan-500'
     },
     {
-        id: 'dispatcher',
-        title: 'Dispatcher',
-        description: 'Assign shipments to drivers and manage day-to-day operations',
-        icon: Package,
+        id: 'transporter',
+        title: 'Transporter / Fleet Owner',
+        description: 'Manage fleets, drivers and deliveries',
+        icon: Truck,
         color: 'from-purple-500 to-pink-500'
     },
     {
         id: 'driver',
         title: 'Driver',
-        description: 'View assigned deliveries and update shipment status',
-        icon: Truck,
+        description: 'Execute deliveries and update status',
+        icon: User,
         color: 'from-orange-500 to-red-500'
+    },
+    {
+        id: 'customer',
+        title: 'Customer',
+        description: 'Track personal orders',
+        icon: Globe,
+        color: 'from-emerald-500 to-teal-500'
     },
 ];
 
@@ -75,7 +82,7 @@ const RegisterPage = () => {
 
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState({
-        // User fields (matching MongoDB User schema)
+        // ... state remains unchanged ...
         firstName: '',
         lastName: '',
         email: '',
@@ -83,7 +90,6 @@ const RegisterPage = () => {
         password: '',
         confirmPassword: '',
         role: '',
-        // Company fields (matching MongoDB Company schema)
         companyName: '',
         companyEmail: '',
         companyPhone: '',
@@ -94,6 +100,7 @@ const RegisterPage = () => {
         state: '',
         country: 'India',
     });
+    // ... other states unchanged ...
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState({});
@@ -101,13 +108,14 @@ const RegisterPage = () => {
     const [apiError, setApiError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    // Redirect if already authenticated
+    // ... useEffect unchanged ...
     useEffect(() => {
         if (!isLoading && isAuthenticated) {
             navigate('/dashboard', { replace: true });
         }
     }, [isAuthenticated, isLoading, navigate]);
 
+    // ... handleChange unchanged ...
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -144,22 +152,38 @@ const RegisterPage = () => {
         }
 
         if (step === 2) {
-            if (!formData.companyName.trim()) newErrors.companyName = 'Company name is required';
-            if (!formData.city.trim()) newErrors.city = 'City is required';
-            if (!formData.state.trim()) newErrors.state = 'State is required';
+            if (!formData.role) newErrors.role = 'Please select a role';
         }
 
         if (step === 3) {
-            if (!formData.role) newErrors.role = 'Please select a role';
+            // Only validate company info if it's shown (for business roles)
+            if (!formData.companyName.trim()) newErrors.companyName = 'Company name is required';
+            if (!formData.city.trim()) newErrors.city = 'City is required';
+            if (!formData.state.trim()) newErrors.state = 'State is required';
         }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
+    // Check if the selected role requires company info
+    const requiresCompanyInfo = (roleId) => {
+        return ['shipper', 'transporter'].includes(roleId);
+    };
+
     const handleNext = () => {
         if (validateStep(currentStep)) {
-            setCurrentStep(prev => prev + 1);
+            if (currentStep === 2) {
+                // If moving from Step 2 (Role) to Step 3
+                if (requiresCompanyInfo(formData.role)) {
+                    setCurrentStep(3);
+                } else {
+                    // Skip step 3 for personal accounts and submit directly
+                    handleSubmit(new Event('submit'));
+                }
+            } else {
+                setCurrentStep(prev => prev + 1);
+            }
         }
     };
 
@@ -167,21 +191,17 @@ const RegisterPage = () => {
         setCurrentStep(prev => prev - 1);
     };
 
-    const handleRoleSelect = (roleId) => {
-        setFormData(prev => ({ ...prev, role: roleId }));
-        setErrors(prev => ({ ...prev, role: '' }));
-    };
-
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault(); // Handle both direct calls and form events
 
-        if (!validateStep(3)) return;
+        // If we are on step 3, validate it. 
+        // If we came from step 2 (skipping 3), no step 3 validation needed here as it was skipped safely.
+        if (currentStep === 3 && !validateStep(3)) return;
 
         setIsSubmitting(true);
         setApiError('');
 
         try {
-            // Build request payload matching backend expectation
             const payload = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
@@ -189,8 +209,8 @@ const RegisterPage = () => {
                 phone: formData.phone,
                 password: formData.password,
                 role: formData.role,
-                // Company object for new company creation
-                company: {
+                // Only include company info if provided/required
+                company: requiresCompanyInfo(formData.role) ? {
                     name: formData.companyName,
                     email: formData.companyEmail || formData.email,
                     phone: formData.companyPhone || formData.phone,
@@ -200,27 +220,25 @@ const RegisterPage = () => {
                     city: formData.city,
                     state: formData.state,
                     country: formData.country,
-                }
+                } : undefined
             };
 
-            // Use authRegister from context to set auth state properly
             const result = await authRegister(payload);
 
             if (result.success) {
                 setSuccessMessage('Account created successfully! Redirecting...');
-
-                // Navigate based on role
                 setTimeout(() => {
                     switch (formData.role) {
                         case 'driver':
                             navigate('/driver-portal', { replace: true });
                             break;
-                        case 'dispatcher':
-                            navigate('/shipments/new', { replace: true });
+                        case 'shipper':
+                        case 'transporter':
+                            navigate('/dashboard', { replace: true });
                             break;
-                        case 'manager':
-                        case 'admin':
-                        case 'super_admin':
+                        case 'customer':
+                            navigate('/track', { replace: true });
+                            break;
                         default:
                             navigate('/dashboard', { replace: true });
                             break;
@@ -237,7 +255,7 @@ const RegisterPage = () => {
         }
     };
 
-    // Render Step 1: Personal Information
+    // ... renderPersonalInfo unchanged ...
     const renderPersonalInfo = () => (
         <div className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
@@ -347,7 +365,7 @@ const RegisterPage = () => {
         </div>
     );
 
-    // Render Step 2: Company Information
+    // ... renderCompanyInfo unchanged ...
     const renderCompanyInfo = () => (
         <div className="space-y-5">
             <InputField
@@ -459,33 +477,59 @@ const RegisterPage = () => {
         </div>
     );
 
-    // Render Step 3: Role Selection
+    // ... renderRoleSelection unchanged ...
     const renderRoleSelection = () => (
-        <div className="space-y-4">
-            <p className="text-slate-400 text-center mb-6">Select your role in the organization</p>
+        <div className="space-y-6">
+            <div className="text-center mb-6">
+                <Briefcase className="w-12 h-12 text-cyan-400 mx-auto mb-3" />
+                <h3 className="text-xl font-semibold text-white">Select User Profile</h3>
+                <p className="text-slate-400">Choose the role that best describes your usage</p>
+            </div>
 
-            {ROLES.map((role) => (
-                <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => handleRoleSelect(role.id)}
-                    className={`w-full p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${formData.role === role.id
-                        ? 'border-cyan-500 bg-cyan-500/10'
-                        : 'border-slate-700 hover:border-slate-600 bg-slate-800/30'
-                        }`}
-                >
-                    <div className={`p-3 rounded-lg bg-gradient-to-r ${role.color}`}>
-                        <role.icon className="w-6 h-6 text-white" />
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">
+                    Profile Type <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                    <select
+                        name="role"
+                        value={formData.role}
+                        onChange={handleChange}
+                        className="w-full pl-4 pr-10 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 appearance-none transition-all cursor-pointer"
+                    >
+                        <option value="" disabled>Select a profile...</option>
+                        {ROLES.map(role => (
+                            <option key={role.id} value={role.id}>
+                                {role.title}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                        <Check className="w-4 h-4" />
                     </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-white">{role.title}</h3>
-                        <p className="text-sm text-slate-400">{role.description}</p>
-                    </div>
-                    {formData.role === role.id && (
-                        <CheckCircle className="w-6 h-6 text-cyan-400" />
-                    )}
-                </button>
-            ))}
+                </div>
+            </div>
+
+            {formData.role && (
+                <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700 transition-all animate-in fade-in slide-in-from-top-2">
+                    {(() => {
+                        const selectedRole = ROLES.find(r => r.id === formData.role);
+                        if (!selectedRole) return null;
+                        const Icon = selectedRole.icon;
+                        return (
+                            <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-lg bg-gradient-to-r ${selectedRole.color}`}>
+                                    <Icon className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold text-white">{selectedRole.title}</h4>
+                                    <p className="text-sm text-slate-400 mt-1">{selectedRole.description}</p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
 
             {errors.role && <p className="text-center text-sm text-red-400">{errors.role}</p>}
         </div>
@@ -493,14 +537,12 @@ const RegisterPage = () => {
 
     return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center px-4 py-8">
-            {/* Background */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
             </div>
 
             <div className="relative z-10 w-full max-w-lg">
-                {/* Logo */}
                 <Link to="/" className="flex items-center justify-center mb-8">
                     <div className="text-3xl font-black tracking-tighter">
                         <span className="text-white">Logi</span>
@@ -508,34 +550,36 @@ const RegisterPage = () => {
                     </div>
                 </Link>
 
-                {/* Progress Steps */}
                 <div className="flex justify-center mb-8">
-                    {STEPS.map((step, idx) => (
-                        <div key={step.id} className="flex items-center">
-                            <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${currentStep >= step.id
-                                ? 'border-cyan-500 bg-cyan-500/20 text-cyan-400'
-                                : 'border-slate-700 text-slate-500'
-                                }`}>
-                                {currentStep > step.id ? (
-                                    <Check className="w-5 h-5" />
-                                ) : (
-                                    <step.icon className="w-5 h-5" />
+                    {STEPS.map((step, idx) => {
+                        // Hide Step 3 indicator if strictly on step 2 and Role doesn't require company info?
+                        // Actually, it's better to show all steps but maybe disable step 3 visually if skipped?
+                        // For simplicity, let's keep all 3 visible, user will just jump over 3 if needed.
+                        return (
+                            <div key={step.id} className="flex items-center">
+                                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${currentStep >= step.id
+                                    ? 'border-cyan-500 bg-cyan-500/20 text-cyan-400'
+                                    : 'border-slate-700 text-slate-500'
+                                    }`}>
+                                    {currentStep > step.id ? (
+                                        <Check className="w-5 h-5" />
+                                    ) : (
+                                        <step.icon className="w-5 h-5" />
+                                    )}
+                                </div>
+                                {idx < STEPS.length - 1 && (
+                                    <div className={`w-12 h-0.5 mx-2 ${currentStep > step.id ? 'bg-cyan-500' : 'bg-slate-700'
+                                        }`} />
                                 )}
                             </div>
-                            {idx < STEPS.length - 1 && (
-                                <div className={`w-12 h-0.5 mx-2 ${currentStep > step.id ? 'bg-cyan-500' : 'bg-slate-700'
-                                    }`} />
-                            )}
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
 
-                {/* Form Card */}
                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-xl">
                     <h1 className="text-2xl font-bold text-white text-center mb-2">Create Account</h1>
                     <p className="text-slate-400 text-center mb-8">Step {currentStep} of 3: {STEPS[currentStep - 1].title}</p>
 
-                    {/* Success Message */}
                     {successMessage && (
                         <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-3">
                             <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -543,7 +587,6 @@ const RegisterPage = () => {
                         </div>
                     )}
 
-                    {/* API Error */}
                     {apiError && (
                         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -553,10 +596,9 @@ const RegisterPage = () => {
 
                     <form onSubmit={handleSubmit}>
                         {currentStep === 1 && renderPersonalInfo()}
-                        {currentStep === 2 && renderCompanyInfo()}
-                        {currentStep === 3 && renderRoleSelection()}
+                        {currentStep === 2 && renderRoleSelection()}
+                        {currentStep === 3 && renderCompanyInfo()}
 
-                        {/* Navigation Buttons */}
                         <div className="flex gap-4 mt-8">
                             {currentStep > 1 && (
                                 <Button
@@ -570,6 +612,7 @@ const RegisterPage = () => {
                                 </Button>
                             )}
 
+                            {/* Button Logic: If Step < 3, show Next. If Step 2 and Profile is personal, Next acts as Submit. Note: handleNext handles logic */}
                             {currentStep < 3 ? (
                                 <Button
                                     type="button"
@@ -577,7 +620,12 @@ const RegisterPage = () => {
                                     className="flex-1"
                                     onClick={handleNext}
                                 >
-                                    Next <ArrowRight className="w-4 h-4 ml-2" />
+                                    {/* If on step 2 and direct submit is possible, label could be 'Create Account' but keeping 'Next' for simplicity unless state matches */}
+                                    {currentStep === 2 && !requiresCompanyInfo(formData.role) && formData.role ? (
+                                        <>Create Account <Check className="w-4 h-4 ml-2" /></>
+                                    ) : (
+                                        <>Next <ArrowRight className="w-4 h-4 ml-2" /></>
+                                    )}
                                 </Button>
                             ) : (
                                 <Button
@@ -601,7 +649,6 @@ const RegisterPage = () => {
                         </div>
                     </form>
 
-                    {/* Login Link */}
                     <p className="mt-6 text-center text-slate-400">
                         Already have an account?{' '}
                         <Link to="/login" className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">

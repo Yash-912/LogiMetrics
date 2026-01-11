@@ -9,7 +9,7 @@ import api, { setTokens, clearTokens } from './axios';
 import { mockLogin, mockRegister, mockGetMe, mockLogout, isMockMode } from './mock.api';
 
 // Check if we should use mock API (set to false for real backend connection)
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true';
+const USE_MOCK = false; // import.meta.env.VITE_USE_MOCK_API === 'true';
 
 /**
  * Login user with email and password

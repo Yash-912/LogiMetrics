@@ -1,14 +1,12 @@
-/**
- * Driver Management Page
- * Manage fleet drivers with CRUD operations
- */
-
 import { useState, useEffect } from 'react';
 import {
     Users, Search, Plus, Edit, Trash2, Phone, Mail, MapPin,
     RefreshCw, AlertCircle, CheckCircle, Clock, X, User,
-    ChevronLeft, ChevronRight, Star, Truck, Calendar
+    ChevronLeft, ChevronRight, Star, Truck, Calendar, FileText,
+    Activity, Gauge, Package
 } from 'lucide-react';
+import { driverApi } from '@/api';
+import { toast } from 'sonner';
 
 // Driver status configuration
 const STATUS_CONFIG = {
@@ -18,14 +16,6 @@ const STATUS_CONFIG = {
     on_leave: { label: 'On Leave', color: 'bg-yellow-500/20 text-yellow-400' }
 };
 
-// Mock driver data
-const MOCK_DRIVERS = [
-    { id: 'DRV001', firstName: 'Rajesh', lastName: 'Kumar', phone: '9876543210', email: 'rajesh@fleet.com', licenseNumber: 'DL-1234567890', status: 'available', rating: 4.8, completedTrips: 156, joinedAt: '2024-01-15' },
-    { id: 'DRV002', firstName: 'Amit', lastName: 'Singh', phone: '9876543211', email: 'amit@fleet.com', licenseNumber: 'DL-9876543210', status: 'on_duty', rating: 4.5, completedTrips: 89, joinedAt: '2024-03-20' },
-    { id: 'DRV003', firstName: 'Suresh', lastName: 'Patel', phone: '9876543212', email: 'suresh@fleet.com', licenseNumber: 'DL-5678901234', status: 'off_duty', rating: 4.9, completedTrips: 234, joinedAt: '2023-08-10' },
-    { id: 'DRV004', firstName: 'Vikram', lastName: 'Sharma', phone: '9876543213', email: 'vikram@fleet.com', licenseNumber: 'DL-3456789012', status: 'on_leave', rating: 4.2, completedTrips: 45, joinedAt: '2024-06-01' },
-];
-
 export default function DriverManagementPage() {
     const [drivers, setDrivers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -34,78 +24,95 @@ export default function DriverManagementPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingDriver, setEditingDriver] = useState(null);
     const [formData, setFormData] = useState({
-        firstName: '', lastName: '', phone: '', email: '', licenseNumber: '', status: 'available'
+        firstName: '', lastName: '', phone: '', email: '',
+        licenseNumber: '', licenseType: '', status: 'available'
     });
 
     // Load drivers
-    useEffect(() => {
-        const loadDrivers = async () => {
+    const loadDrivers = async () => {
+        try {
             setLoading(true);
-            // Simulate API call
-            await new Promise(r => setTimeout(r, 500));
-            const stored = localStorage.getItem('mock_drivers');
-            if (stored) {
-                setDrivers(JSON.parse(stored));
+            const response = await driverApi.getDrivers();
+            if (response.success) {
+                setDrivers(response.data || []);
             } else {
-                setDrivers(MOCK_DRIVERS);
-                localStorage.setItem('mock_drivers', JSON.stringify(MOCK_DRIVERS));
+                toast.error('Failed to load drivers');
             }
+        } catch (error) {
+            console.error('Error loading drivers:', error);
+            toast.error('Failed to load drivers');
+        } finally {
             setLoading(false);
-        };
+        }
+    };
+
+    useEffect(() => {
         loadDrivers();
     }, []);
 
     // Filter drivers
     const filteredDrivers = drivers.filter(driver => {
-        const matchesSearch = `${driver.firstName} ${driver.lastName} ${driver.phone} ${driver.email}`
+        const userId = driver.userId || {};
+        const fName = driver.firstname || driver.firstName || userId.firstName || '';
+        const lName = driver.lastname || driver.lastName || userId.lastName || '';
+        const email = driver.email || userId.email || '';
+
+        const matchesSearch = `${fName} ${lName} ${driver.phone || ''} ${email}`
             .toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = !statusFilter || driver.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
     // Handle form submit
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        let updatedDrivers;
-
-        if (editingDriver) {
-            updatedDrivers = drivers.map(d => d.id === editingDriver.id ? { ...d, ...formData } : d);
-        } else {
-            const newDriver = {
-                ...formData,
-                id: 'DRV' + Date.now(),
-                rating: 0,
-                completedTrips: 0,
-                joinedAt: new Date().toISOString().split('T')[0]
-            };
-            updatedDrivers = [...drivers, newDriver];
+        try {
+            if (editingDriver) {
+                await driverApi.updateDriver(editingDriver._id || editingDriver.id, formData);
+                toast.success('Driver updated successfully');
+            } else {
+                await driverApi.createDriver(formData);
+                toast.success('Driver added successfully');
+            }
+            setShowAddModal(false);
+            setEditingDriver(null);
+            setFormData({ firstName: '', lastName: '', phone: '', email: '', licenseNumber: '', licenseType: '', status: 'available' });
+            loadDrivers();
+        } catch (error) {
+            console.error('Error saving driver:', error);
+            toast.error(error.response?.data?.message || 'Failed to save driver');
         }
-
-        setDrivers(updatedDrivers);
-        localStorage.setItem('mock_drivers', JSON.stringify(updatedDrivers));
-        setShowAddModal(false);
-        setEditingDriver(null);
-        setFormData({ firstName: '', lastName: '', phone: '', email: '', licenseNumber: '', status: 'available' });
     };
 
     // Handle delete
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (!confirm('Are you sure you want to delete this driver?')) return;
-        const updatedDrivers = drivers.filter(d => d.id !== id);
-        setDrivers(updatedDrivers);
-        localStorage.setItem('mock_drivers', JSON.stringify(updatedDrivers));
+        try {
+            await driverApi.deleteDriver(id);
+            toast.success('Driver deleted successfully');
+            loadDrivers();
+        } catch (error) {
+            console.error('Error deleting driver:', error);
+            toast.error('Failed to delete driver');
+        }
     };
 
     // Handle edit
     const handleEdit = (driver) => {
         setEditingDriver(driver);
+        const userId = driver.userId || {};
+        const fName = driver.firstname || driver.firstName || userId.firstName || '';
+        const lName = driver.lastname || driver.lastName || userId.lastName || '';
+        const email = driver.email || userId.email || '';
+
         setFormData({
-            firstName: driver.firstName,
-            lastName: driver.lastName,
-            phone: driver.phone,
-            email: driver.email,
-            licenseNumber: driver.licenseNumber,
-            status: driver.status
+            firstName: fName,
+            lastName: lName,
+            phone: driver.phone || '',
+            email: email,
+            licenseNumber: driver.licenseNumber || '',
+            licenseType: driver.licenseType || '',
+            status: driver.status || 'available'
         });
         setShowAddModal(true);
     };
@@ -123,7 +130,7 @@ export default function DriverManagementPage() {
                         <p className="text-gray-400 mt-1">Manage your fleet drivers</p>
                     </div>
                     <button
-                        onClick={() => { setEditingDriver(null); setFormData({ firstName: '', lastName: '', phone: '', email: '', licenseNumber: '', status: 'available' }); setShowAddModal(true); }}
+                        onClick={() => { setEditingDriver(null); setFormData({ firstName: '', lastName: '', phone: '', email: '', licenseNumber: '', licenseType: '', status: 'available' }); setShowAddModal(true); }}
                         className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25"
                     >
                         <Plus className="w-4 h-4" />
@@ -194,15 +201,21 @@ export default function DriverManagementPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredDrivers.map(driver => {
                             const status = STATUS_CONFIG[driver.status] || STATUS_CONFIG.available;
+                            const userId = driver.userId || {};
+                            const fName = driver.firstname || driver.firstName || userId.firstName || 'Driver';
+                            const lName = driver.lastname || driver.lastName || userId.lastName || '';
+                            const email = driver.email || userId.email || 'N/A';
+                            const driverId = driver._id || driver.id;
+
                             return (
-                                <div key={driver.id} className="bg-slate-800/50 backdrop-blur-xl rounded-xl p-5 border border-slate-700/50 hover:border-emerald-500/50 transition-all group">
+                                <div key={driverId} className="bg-slate-800/50 backdrop-blur-xl rounded-xl p-5 border border-slate-700/50 hover:border-emerald-500/50 transition-all group">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white font-bold text-lg">
-                                                {driver.firstName[0]}{driver.lastName[0]}
+                                                {fName[0]}{lName[0] || ''}
                                             </div>
                                             <div>
-                                                <h3 className="text-white font-semibold">{driver.firstName} {driver.lastName}</h3>
+                                                <h3 className="text-white font-semibold">{fName} {lName}</h3>
                                                 <span className={`text-xs px-2 py-0.5 rounded-full ${status.color}`}>
                                                     {status.label}
                                                 </span>
@@ -212,7 +225,7 @@ export default function DriverManagementPage() {
                                             <button onClick={() => handleEdit(driver)} className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-slate-700 rounded">
                                                 <Edit className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => handleDelete(driver.id)} className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-slate-700 rounded">
+                                            <button onClick={() => handleDelete(driverId)} className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-slate-700 rounded">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -221,24 +234,46 @@ export default function DriverManagementPage() {
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Phone className="w-4 h-4" />
-                                            <span>{driver.phone}</span>
+                                            <span>{driver.phone || 'N/A'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Mail className="w-4 h-4" />
-                                            <span>{driver.email}</span>
+                                            <span>{email}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-gray-400">
+                                            <FileText className="w-4 h-4" />
+                                            <span>Type: {driver.licenseType || 'Standard'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Truck className="w-4 h-4" />
-                                            <span>License: {driver.licenseNumber}</span>
+                                            <span>Lic: {driver.licenseNumber || 'N/A'}</span>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700/50">
+                                    <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-700/50">
+                                        <div className="bg-slate-700/30 p-2 rounded text-center">
+                                            <p className="text-xs text-gray-400 mb-1">Shipments</p>
+                                            <div className="flex items-center justify-center gap-1 text-white font-medium">
+                                                <Package className="w-3 h-3 text-blue-400" />
+                                                {driver.totalShipments || 0}
+                                            </div>
+                                        </div>
+                                        <div className="bg-slate-700/30 p-2 rounded text-center">
+                                            <p className="text-xs text-gray-400 mb-1">Distance</p>
+                                            <div className="flex items-center justify-center gap-1 text-white font-medium">
+                                                <Gauge className="w-3 h-3 text-purple-400" />
+                                                {driver.totalDistance ? (driver.totalDistance / 1000).toFixed(1) + 'k' : '0'} km
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-3">
                                         <div className="flex items-center gap-1">
                                             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                            <span className="text-white font-medium">{driver.rating}</span>
+                                            <span className="text-white font-medium">{driver.rating || 0}</span>
+                                            <span className="text-xs text-gray-500">/ 5.0</span>
                                         </div>
-                                        <span className="text-gray-400 text-sm">{driver.completedTrips} trips</span>
+                                        <span className="text-xs text-gray-500">Joined: {new Date(driver.createdAt).toLocaleDateString()}</span>
                                     </div>
                                 </div>
                             );
@@ -250,7 +285,7 @@ export default function DriverManagementPage() {
             {/* Add/Edit Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700">
+                    <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-bold text-white">
                                 {editingDriver ? 'Edit Driver' : 'Add New Driver'}
@@ -303,15 +338,27 @@ export default function DriverManagementPage() {
                                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1">License Number</label>
-                                <input
-                                    type="text"
-                                    value={formData.licenseNumber}
-                                    onChange={(e) => setFormData(f => ({ ...f, licenseNumber: e.target.value }))}
-                                    required
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">License Number</label>
+                                    <input
+                                        type="text"
+                                        value={formData.licenseNumber}
+                                        onChange={(e) => setFormData(f => ({ ...f, licenseNumber: e.target.value }))}
+                                        required
+                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">License Type</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. HMV"
+                                        value={formData.licenseType}
+                                        onChange={(e) => setFormData(f => ({ ...f, licenseType: e.target.value }))}
+                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                                    />
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1">Status</label>

@@ -7,7 +7,7 @@ import api from './axios';
 import { mockCreateShipment, mockGetShipments } from './mock.api';
 
 // Set to false when backend is ready
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // Mock delay helper
 const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
@@ -166,7 +166,7 @@ export const trackShipment = async (trackingNumber) => {
         }
         return shipment;
     }
-    const response = await api.get(`/shipments/track/${trackingNumber}`);
+    const response = await api.get(`/public/track/${trackingNumber}`);
     return response.data.data;
 };
 

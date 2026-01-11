@@ -15,7 +15,7 @@ import {
 const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
+    const { login, isAuthenticated, isLoading, error, clearError, user } = useAuth();
 
     const [formData, setFormData] = useState({
         email: '',
@@ -29,10 +29,16 @@ const LoginPage = () => {
     // Redirect if already authenticated
     useEffect(() => {
         if (!isLoading && isAuthenticated) {
-            const from = location.state?.from?.pathname || '/dashboard';
-            navigate(from, { replace: true });
+            const from = location.state?.from?.pathname;
+            if (user?.role === 'driver') {
+                navigate('/driver-portal', { replace: true });
+            } else if (from) {
+                navigate(from, { replace: true });
+            } else {
+                navigate('/dashboard', { replace: true });
+            }
         }
-    }, [isAuthenticated, isLoading, navigate, location]);
+    }, [isAuthenticated, isLoading, navigate, location, user]);
 
     // Clear errors on mount
     useEffect(() => {
@@ -97,10 +103,10 @@ const LoginPage = () => {
                 const user = result.user;
                 const from = location.state?.from?.pathname;
 
-                if (from) {
-                    navigate(from, { replace: true });
-                } else if (user?.role === 'driver') {
+                if (user?.role === 'driver') {
                     navigate('/driver-portal', { replace: true });
+                } else if (from) {
+                    navigate(from, { replace: true });
                 } else {
                     navigate('/dashboard', { replace: true });
                 }
