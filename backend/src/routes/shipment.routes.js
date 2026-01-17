@@ -1,12 +1,15 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const shipmentController = require('../controllers/shipment.controller');
-const { shipmentValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize, checkPermission } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { uploadSingle, uploadMultiple } = require('../middleware/upload.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const shipmentController = require("../controllers/shipment.controller");
+const { shipmentValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize, checkPermission } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const {
+  uploadSingle,
+  uploadMultiple,
+} = require("../middleware/upload.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -17,9 +20,8 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-  '/',
-  shipmentValidator.getShipments,
-  validate,
+  "/",
+  validate(shipmentValidator.getShipments),
   shipmentController.getShipments
 );
 
@@ -29,9 +31,8 @@ router.get(
  * @access  Private
  */
 router.get(
-  '/:id',
-  shipmentValidator.getShipmentById,
-  validate,
+  "/:id",
+  validate(shipmentValidator.getShipmentById),
   shipmentController.getShipmentById
 );
 
@@ -41,9 +42,8 @@ router.get(
  * @access  Private (or Public with tracking number)
  */
 router.get(
-  '/:id/track',
-  shipmentValidator.getShipmentById,
-  validate,
+  "/:id/track",
+  validate(shipmentValidator.getShipmentById),
   shipmentController.trackShipment
 );
 
@@ -53,9 +53,8 @@ router.get(
  * @access  Private
  */
 router.get(
-  '/:id/events',
-  shipmentValidator.getShipmentById,
-  validate,
+  "/:id/events",
+  validate(shipmentValidator.getShipmentById),
   shipmentController.getShipmentEvents
 );
 
@@ -65,10 +64,9 @@ router.get(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.post(
-  '/',
-  authorize(['admin', 'manager', 'dispatcher']),
-  shipmentValidator.createShipment,
-  validate,
+  "/",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(shipmentValidator.createShipment),
   shipmentController.createShipment
 );
 
@@ -78,10 +76,9 @@ router.post(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-  '/:id',
-  authorize(['admin', 'manager', 'dispatcher']),
-  shipmentValidator.updateShipment,
-  validate,
+  "/:id",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(shipmentValidator.updateShipment),
   shipmentController.updateShipment
 );
 
@@ -91,10 +88,9 @@ router.put(
  * @access  Private (Admin, Manager, Dispatcher, Driver)
  */
 router.put(
-  '/:id/status',
-  authorize(['admin', 'manager', 'dispatcher', 'driver']),
-  shipmentValidator.updateStatus,
-  validate,
+  "/:id/status",
+  authorize(["admin", "manager", "dispatcher", "driver"]),
+  validate(shipmentValidator.updateStatus),
   shipmentController.updateShipmentStatus
 );
 
@@ -104,10 +100,9 @@ router.put(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-  '/:id/assign',
-  authorize(['admin', 'manager', 'dispatcher']),
-  shipmentValidator.assignShipment,
-  validate,
+  "/:id/assign",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(shipmentValidator.assignShipment),
   shipmentController.assignShipment
 );
 
@@ -117,9 +112,9 @@ router.put(
  * @access  Private (Driver)
  */
 router.post(
-  '/:id/pod',
-  authorize(['admin', 'manager', 'dispatcher', 'driver']),
-  uploadMultiple('pod', 5),
+  "/:id/pod",
+  authorize(["admin", "manager", "dispatcher", "driver"]),
+  uploadMultiple("pod", 5),
   shipmentController.uploadPOD
 );
 
@@ -129,10 +124,9 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id/cancel',
-  authorize(['admin', 'manager']),
-  shipmentValidator.cancelShipment,
-  validate,
+  "/:id/cancel",
+  authorize(["admin", "manager"]),
+  validate(shipmentValidator.cancelShipment),
   shipmentController.cancelShipment
 );
 
@@ -142,10 +136,9 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-  '/:id',
-  authorize(['admin']),
-  shipmentValidator.getShipmentById,
-  validate,
+  "/:id",
+  authorize(["admin"]),
+  validate(shipmentValidator.getShipmentById),
   shipmentController.deleteShipment
 );
 
@@ -155,10 +148,9 @@ router.delete(
  * @access  Private (Admin, Manager)
  */
 router.post(
-  '/bulk',
-  authorize(['admin', 'manager']),
-  shipmentValidator.bulkCreate,
-  validate,
+  "/bulk",
+  authorize(["admin", "manager"]),
+  validate(shipmentValidator.bulkCreate),
   shipmentController.bulkCreateShipments
 );
 

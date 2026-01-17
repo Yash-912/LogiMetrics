@@ -1,9 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DollarSign, Map, Smartphone } from 'lucide-react';
 
 const TruckPartners = () => {
+    const navigate = useNavigate();
+
     return (
         <div className="min-h-screen bg-[#020617] text-white pt-20">
             <section className="relative py-24 px-6 text-center">
@@ -13,8 +16,22 @@ const TruckPartners = () => {
                 </p>
                 <div className="bg-slate-900/50 p-8 rounded-2xl max-w-md mx-auto border border-slate-800">
                     <h3 className="text-xl font-bold mb-4">Attach your Vehicle</h3>
-                    <input type="text" placeholder="Enter Mobile Number" className="w-full bg-slate-800 border-none rounded-lg py-3 px-4 mb-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500" />
-                    <Button className="w-full">Join Now</Button>
+                    <p className="text-slate-400 text-sm mb-4">Register as a Fleet Owner or Driver to start earning</p>
+                    <div className="space-y-3">
+                        <Button
+                            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                            onClick={() => navigate('/register?role=transporter')}
+                        >
+                            Join as Fleet Owner
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="w-full border-slate-700 hover:bg-slate-800"
+                            onClick={() => navigate('/register?role=driver')}
+                        >
+                            Join as Driver
+                        </Button>
+                    </div>
                 </div>
             </section>
 

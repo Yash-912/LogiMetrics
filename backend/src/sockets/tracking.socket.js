@@ -3,11 +3,12 @@
  * Real-time GPS updates and location broadcasting
  */
 
-const { redisClient } = require('../config/redis');
-const { LiveTracking } = require('../models/mongodb');
-const logger = require('../utils/logger.util');
+const { redisClient } = require("../config/redis");
+const { LiveTracking } = require("../models/mongodb");
+const AccidentZoneAlerting = require("../services/AccidentZoneAlerting");
+const logger = require("../utils/logger.util");
 
-const LOCATION_CACHE_PREFIX = 'location:';
+const LOCATION_CACHE_PREFIX = "location:";
 const LOCATION_CACHE_TTL = 60;
 
 /**
@@ -15,10 +16,10 @@ const LOCATION_CACHE_TTL = 60;
  */
 function initialize(io, socket) {
     // Driver sends location update
-    socket.on('tracking:location:update', async (data) => {
+    socket.on("tracking:location:update", async (data) => {
         try {
             if (!validateLocationData(data)) {
-                socket.emit('tracking:error', { message: 'Invalid location data' });
+                socket.emit("tracking:error", { message: "Invalid location data" });
                 return;
             }
 
@@ -32,39 +33,99 @@ function initialize(io, socket) {
                 heading: data.heading || 0,
                 accuracy: data.accuracy || 0,
                 altitude: data.altitude || 0,
-                timestamp: new Date()
+                timestamp: new Date(),
             };
 
             // Store in Redis for quick access
             const cacheKey = `${LOCATION_CACHE_PREFIX}${data.vehicleId}`;
-            await redisClient.setex(cacheKey, LOCATION_CACHE_TTL, JSON.stringify(locationData));
+            await redisClient.setex(
+                cacheKey,
+                LOCATION_CACHE_TTL,
+                JSON.stringify(locationData)
+            );
 
             // Store in MongoDB for history
             await LiveTracking.create(locationData);
 
             // Broadcast to vehicle room
-            io.to(`vehicle:${data.vehicleId}`).emit('tracking:location', locationData);
+            io.to(`vehicle:${data.vehicleId}`).emit(
+                "tracking:location",
+                locationData
+            );
 
             // Broadcast to shipment room if applicable
             if (data.shipmentId) {
-                io.to(`shipment:${data.shipmentId}`).emit('tracking:location', locationData);
-                io.to(`tracking:${data.shipmentId}`).emit('tracking:location', locationData);
+                io.to(`shipment:${data.shipmentId}`).emit(
+                    "tracking:location",
+                    locationData
+                );
+                io.to(`tracking:${data.shipmentId}`).emit(
+                    "tracking:location",
+                    locationData
+                );
             }
 
             // Broadcast to company dashboard
             if (socket.user?.companyId) {
-                io.to(`company:${socket.user.companyId}`).emit('fleet:location', locationData);
+                io.to(`company:${socket.user.companyId}`).emit(
+                    "fleet:location",
+                    locationData
+                );
+            }
+
+            // Broadcast to all clients in 'fleet' room (for simulator testing)
+            io.to("fleet").emit("fleet:location", locationData);
+
+            // CHECK FOR ACCIDENT ZONE ALERTS
+            const alertResult = await AccidentZoneAlerting.processLocationUpdate(
+                locationData
+            );
+            if (alertResult.hasAlert) {
+                // Send alert to driver
+                socket.emit("alert:accident-zone", {
+                    zones: alertResult.zones,
+                    location: alertResult.location,
+                    timestamp: new Date(),
+                });
+
+                // Broadcast to vehicle room (fleet managers can see alerts)
+                io.to(`vehicle:${data.vehicleId}`).emit("alert:accident-zone", {
+                    vehicleId: data.vehicleId,
+                    zones: alertResult.zones,
+                    location: alertResult.location,
+                    timestamp: new Date(),
+                });
+
+                // Broadcast to company dashboard
+                if (socket.user?.companyId) {
+                    io.to(`company:${socket.user.companyId}`).emit(
+                        "vehicle:accident-zone-alert",
+                        {
+                            vehicleId: data.vehicleId,
+                            driverId: socket.user.id,
+                            zones: alertResult.zones,
+                            location: alertResult.location,
+                            timestamp: new Date(),
+                        }
+                    );
+                }
+
+                logger.warn(
+                    `Accident zone alert for vehicle ${data.vehicleId}: ${alertResult.zones.length} zones`
+                );
             }
 
             logger.debug(`Location update: vehicle ${data.vehicleId}`);
         } catch (error) {
-            logger.error('Tracking location update error:', error);
-            socket.emit('tracking:error', { message: 'Failed to process location update' });
+            logger.error("Tracking location update error:", error);
+            socket.emit("tracking:error", {
+                message: "Failed to process location update",
+            });
         }
     });
 
     // Subscribe to vehicle tracking
-    socket.on('tracking:subscribe:vehicle', (vehicleId) => {
+    socket.on("tracking:subscribe:vehicle", (vehicleId) => {
         socket.join(`vehicle:${vehicleId}`);
         logger.debug(`Socket ${socket.id} subscribed to vehicle ${vehicleId}`);
 
@@ -73,35 +134,50 @@ function initialize(io, socket) {
     });
 
     // Unsubscribe from vehicle tracking
-    socket.on('tracking:unsubscribe:vehicle', (vehicleId) => {
+    socket.on("tracking:unsubscribe:vehicle", (vehicleId) => {
         socket.leave(`vehicle:${vehicleId}`);
         logger.debug(`Socket ${socket.id} unsubscribed from vehicle ${vehicleId}`);
     });
 
     // Subscribe to shipment tracking (public)
-    socket.on('tracking:subscribe:shipment', (shipmentId) => {
+    socket.on("tracking:subscribe:shipment", (shipmentId) => {
         socket.join(`tracking:${shipmentId}`);
         socket.join(`shipment:${shipmentId}`);
         logger.debug(`Socket ${socket.id} subscribed to shipment ${shipmentId}`);
     });
 
     // Unsubscribe from shipment tracking
-    socket.on('tracking:unsubscribe:shipment', (shipmentId) => {
+    socket.on("tracking:unsubscribe:shipment", (shipmentId) => {
         socket.leave(`tracking:${shipmentId}`);
         socket.leave(`shipment:${shipmentId}`);
-        logger.debug(`Socket ${socket.id} unsubscribed from shipment ${shipmentId}`);
+        logger.debug(
+            `Socket ${socket.id} unsubscribed from shipment ${shipmentId}`
+        );
     });
 
     // Subscribe to fleet tracking (all company vehicles)
-    socket.on('tracking:subscribe:fleet', () => {
+    socket.on("tracking:subscribe:fleet", () => {
         if (socket.user?.companyId) {
             socket.join(`fleet:${socket.user.companyId}`);
             logger.debug(`Socket ${socket.id} subscribed to fleet tracking`);
+        } else {
+            // For unauthenticated clients (simulators), join the general fleet room
+            socket.join("fleet");
+            logger.debug(`Socket ${socket.id} subscribed to general fleet tracking`);
+        }
+    });
+
+    // Join a specific room
+    socket.on("join:room", (data) => {
+        const { room } = data;
+        if (room) {
+            socket.join(room);
+            logger.debug(`Socket ${socket.id} joined room ${room}`);
         }
     });
 
     // Request current location
-    socket.on('tracking:get:location', async (data) => {
+    socket.on("tracking:get:location", async (data) => {
         try {
             const { vehicleId, shipmentId } = data;
 
@@ -111,15 +187,15 @@ function initialize(io, socket) {
                 await sendShipmentLocation(socket, shipmentId);
             }
         } catch (error) {
-            socket.emit('tracking:error', { message: 'Failed to get location' });
+            socket.emit("tracking:error", { message: "Failed to get location" });
         }
     });
 
     // Telemetry update from driver app
-    socket.on('tracking:telemetry', async (data) => {
+    socket.on("tracking:telemetry", async (data) => {
         try {
             if (!socket.user) {
-                socket.emit('tracking:error', { message: 'Authentication required' });
+                socket.emit("tracking:error", { message: "Authentication required" });
                 return;
             }
 
@@ -130,30 +206,33 @@ function initialize(io, socket) {
                 odometer: data.odometer,
                 speed: data.speed,
                 batteryVoltage: data.batteryVoltage,
-                timestamp: new Date()
+                timestamp: new Date(),
             };
 
             // Broadcast to company dashboard
             if (socket.user.companyId) {
-                io.to(`company:${socket.user.companyId}`).emit('vehicle:telemetry', telemetryData);
+                io.to(`company:${socket.user.companyId}`).emit(
+                    "vehicle:telemetry",
+                    telemetryData
+                );
             }
 
             // Check for alerts
             checkTelemetryAlerts(io, socket.user.companyId, telemetryData);
         } catch (error) {
-            logger.error('Telemetry update error:', error);
+            logger.error("Telemetry update error:", error);
         }
     });
 
     // Geofence event
-    socket.on('tracking:geofence:event', (data) => {
+    socket.on("tracking:geofence:event", (data) => {
         if (socket.user?.companyId) {
-            io.to(`company:${socket.user.companyId}`).emit('geofence:alert', {
+            io.to(`company:${socket.user.companyId}`).emit("geofence:alert", {
                 vehicleId: data.vehicleId,
                 geofenceId: data.geofenceId,
                 geofenceName: data.geofenceName,
                 eventType: data.eventType, // 'entry' or 'exit'
-                timestamp: new Date()
+                timestamp: new Date(),
             });
         }
     });
@@ -163,14 +242,14 @@ function initialize(io, socket) {
  * Initialize namespace for tracking
  */
 function initializeNamespace(namespace) {
-    namespace.on('connection', (socket) => {
+    namespace.on("connection", (socket) => {
         logger.info(`Tracking namespace connection: ${socket.id}`);
 
-        socket.on('subscribe', (roomId) => {
+        socket.on("subscribe", (roomId) => {
             socket.join(roomId);
         });
 
-        socket.on('unsubscribe', (roomId) => {
+        socket.on("unsubscribe", (roomId) => {
             socket.leave(roomId);
         });
     });
@@ -182,10 +261,12 @@ function validateLocationData(data) {
     return (
         data &&
         data.vehicleId &&
-        typeof data.latitude === 'number' &&
-        typeof data.longitude === 'number' &&
-        data.latitude >= -90 && data.latitude <= 90 &&
-        data.longitude >= -180 && data.longitude <= 180
+        typeof data.latitude === "number" &&
+        typeof data.longitude === "number" &&
+        data.latitude >= -90 &&
+        data.latitude <= 90 &&
+        data.longitude >= -180 &&
+        data.longitude <= 180
     );
 }
 
@@ -195,36 +276,38 @@ async function sendCurrentLocation(socket, vehicleId) {
         const cached = await redisClient.get(cacheKey);
 
         if (cached) {
-            socket.emit('tracking:location', JSON.parse(cached));
+            socket.emit("tracking:location", JSON.parse(cached));
             return;
         }
 
         // Fallback to database
-        const location = await LiveTracking.findOne({ vehicleId })
-            .sort({ timestamp: -1 });
+        const location = await LiveTracking.findOne({ vehicleId }).sort({
+            timestamp: -1,
+        });
 
         if (location) {
-            socket.emit('tracking:location', location);
+            socket.emit("tracking:location", location);
         } else {
-            socket.emit('tracking:location:not_found', { vehicleId });
+            socket.emit("tracking:location:not_found", { vehicleId });
         }
     } catch (error) {
-        logger.error('Send current location error:', error);
+        logger.error("Send current location error:", error);
     }
 }
 
 async function sendShipmentLocation(socket, shipmentId) {
     try {
-        const location = await LiveTracking.findOne({ shipmentId })
-            .sort({ timestamp: -1 });
+        const location = await LiveTracking.findOne({ shipmentId }).sort({
+            timestamp: -1,
+        });
 
         if (location) {
-            socket.emit('tracking:location', location);
+            socket.emit("tracking:location", location);
         } else {
-            socket.emit('tracking:location:not_found', { shipmentId });
+            socket.emit("tracking:location:not_found", { shipmentId });
         }
     } catch (error) {
-        logger.error('Send shipment location error:', error);
+        logger.error("Send shipment location error:", error);
     }
 }
 
@@ -232,18 +315,26 @@ function checkTelemetryAlerts(io, companyId, telemetry) {
     const alerts = [];
 
     if (telemetry.fuelLevel !== null && telemetry.fuelLevel < 15) {
-        alerts.push({ type: 'low_fuel', severity: 'warning', message: `Low fuel: ${telemetry.fuelLevel}%` });
+        alerts.push({
+            type: "low_fuel",
+            severity: "warning",
+            message: `Low fuel: ${telemetry.fuelLevel}%`,
+        });
     }
 
     if (telemetry.batteryVoltage !== null && telemetry.batteryVoltage < 11.5) {
-        alerts.push({ type: 'low_battery', severity: 'warning', message: `Low battery: ${telemetry.batteryVoltage}V` });
+        alerts.push({
+            type: "low_battery",
+            severity: "warning",
+            message: `Low battery: ${telemetry.batteryVoltage}V`,
+        });
     }
 
     for (const alert of alerts) {
-        io.to(`company:${companyId}`).emit('vehicle:alert', {
+        io.to(`company:${companyId}`).emit("vehicle:alert", {
             vehicleId: telemetry.vehicleId,
             ...alert,
-            timestamp: new Date()
+            timestamp: new Date(),
         });
     }
 }
@@ -251,20 +342,20 @@ function checkTelemetryAlerts(io, companyId, telemetry) {
 // Emit functions for external use
 function emitLocationUpdate(io, data) {
     if (data.vehicleId) {
-        io.to(`vehicle:${data.vehicleId}`).emit('tracking:location', data);
+        io.to(`vehicle:${data.vehicleId}`).emit("tracking:location", data);
     }
     if (data.shipmentId) {
-        io.to(`shipment:${data.shipmentId}`).emit('tracking:location', data);
+        io.to(`shipment:${data.shipmentId}`).emit("tracking:location", data);
     }
 }
 
 function emitGeofenceAlert(io, companyId, data) {
-    io.to(`company:${companyId}`).emit('geofence:alert', data);
+    io.to(`company:${companyId}`).emit("geofence:alert", data);
 }
 
 module.exports = {
     initialize,
     initializeNamespace,
     emitLocationUpdate,
-    emitGeofenceAlert
+    emitGeofenceAlert,
 };

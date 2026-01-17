@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const Button = ({ children, variant = 'primary', size = 'md', onClick, className = '', icon, disabled }) => {
+export const Button = ({ children, variant = 'primary', size = 'md', onClick, className = '', icon, disabled, type = 'button' }) => {
     const variants = {
         primary: 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/30',
         secondary: 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700',
@@ -20,6 +20,7 @@ export const Button = ({ children, variant = 'primary', size = 'md', onClick, cl
 
     return (
         <button
+            type={type}
             onClick={onClick}
             disabled={disabled}
             className={`${variants[variant] || variants.primary} ${sizes[size]} rounded-lg font-semibold transition-all transform hover:scale-105 flex items-center justify-center gap-2 ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
@@ -29,3 +30,4 @@ export const Button = ({ children, variant = 'primary', size = 'md', onClick, cl
         </button>
     );
 };
+

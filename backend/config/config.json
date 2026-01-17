@@ -1,0 +1,44 @@
+{
+    "development": {
+        "username": "neondb_owner",
+        "password": "npg_YI7VfsdAbOx4",
+        "database": "logi_matrix_postgresql_db",
+        "host": "ep-raspy-morning-ahcjg5vl-pooler.c-3.us-east-1.aws.neon.tech",
+        "port": 5432,
+        "dialect": "postgres",
+        "dialectOptions": {
+            "ssl": {
+                "require": true,
+                "rejectUnauthorized": false
+            }
+        }
+    },
+    "test": {
+        "username": "neondb_owner",
+        "password": "npg_YI7VfsdAbOx4",
+        "database": "logi_matrix_postgresql_db_test",
+        "host": "ep-raspy-morning-ahcjg5vl-pooler.c-3.us-east-1.aws.neon.tech",
+        "port": 5432,
+        "dialect": "postgres",
+        "dialectOptions": {
+            "ssl": {
+                "require": true,
+                "rejectUnauthorized": false
+            }
+        }
+    },
+    "production": {
+        "username": "neondb_owner",
+        "password": "npg_YI7VfsdAbOx4",
+        "database": "logi_matrix_postgresql_db",
+        "host": "ep-raspy-morning-ahcjg5vl-pooler.c-3.us-east-1.aws.neon.tech",
+        "port": 5432,
+        "dialect": "postgres",
+        "dialectOptions": {
+            "ssl": {
+                "require": true,
+                "rejectUnauthorized": false
+            }
+        }
+    }
+}

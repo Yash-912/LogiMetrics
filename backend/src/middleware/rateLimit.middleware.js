@@ -101,6 +101,8 @@ const createLimiter = (options) => {
 module.exports = {
   apiLimiter,
   authLimiter,
+  // Alias used by some route files
+  strictLimiter: passwordResetLimiter,
   passwordResetLimiter,
   uploadLimiter,
   paymentLimiter,

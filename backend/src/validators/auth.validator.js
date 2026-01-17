@@ -2,6 +2,7 @@ const { body } = require('express-validator');
 
 /**
  * Validation rules for user registration
+ * Updated to support company creation during registration
  */
 const registerValidation = [
   body('email')
@@ -9,46 +10,63 @@ const registerValidation = [
     .isEmail()
     .withMessage('Please provide a valid email address')
     .normalizeEmail(),
-  
+
   body('password')
     .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  
-  body('confirmPassword')
-    .custom((value, { req }) => value === req.body.password)
-    .withMessage('Passwords do not match'),
-  
+    .withMessage('Password must be at least 8 characters long'),
+
   body('firstName')
     .trim()
     .notEmpty()
     .withMessage('First name is required')
     .isLength({ min: 2, max: 50 })
     .withMessage('First name must be between 2 and 50 characters'),
-  
+
   body('lastName')
     .trim()
     .notEmpty()
     .withMessage('Last name is required')
     .isLength({ min: 2, max: 50 })
     .withMessage('Last name must be between 2 and 50 characters'),
-  
+
   body('phone')
     .optional()
-    .trim()
-    .matches(/^\+?[\d\s-()]+$/)
-    .withMessage('Please provide a valid phone number'),
-  
+    .trim(),
+
   body('companyId')
     .optional()
-    .isUUID()
+    .isMongoId()
     .withMessage('Invalid company ID'),
-  
+
   body('role')
     .optional()
-    .isIn(['admin', 'manager', 'dispatcher', 'driver', 'customer'])
-    .withMessage('Invalid role')
+    .isIn(['super_admin', 'admin', 'manager', 'dispatcher', 'driver', 'customer', 'shipper', 'transporter'])
+    .withMessage('Invalid role'),
+
+  // Company object validation (optional - for new company creation)
+  body('company')
+    .optional()
+    .isObject()
+    .withMessage('Company must be an object'),
+
+  body('company.name')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Company name is required when creating a company'),
+
+  body('company.email')
+    .optional()
+    .isEmail()
+    .withMessage('Invalid company email'),
+
+  body('company.city')
+    .optional()
+    .trim(),
+
+  body('company.state')
+    .optional()
+    .trim(),
 ];
 
 /**
@@ -60,7 +78,7 @@ const loginValidation = [
     .isEmail()
     .withMessage('Please provide a valid email address')
     .normalizeEmail(),
-  
+
   body('password')
     .notEmpty()
     .withMessage('Password is required')
@@ -84,16 +102,10 @@ const resetPasswordValidation = [
   body('token')
     .notEmpty()
     .withMessage('Reset token is required'),
-  
+
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  
-  body('confirmPassword')
-    .custom((value, { req }) => value === req.body.password)
-    .withMessage('Passwords do not match')
 ];
 
 /**
@@ -121,15 +133,13 @@ const changePasswordValidation = [
   body('currentPassword')
     .notEmpty()
     .withMessage('Current password is required'),
-  
+
   body('newPassword')
     .isLength({ min: 8 })
     .withMessage('New password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
     .custom((value, { req }) => value !== req.body.currentPassword)
     .withMessage('New password must be different from current password'),
-  
+
   body('confirmPassword')
     .custom((value, { req }) => value === req.body.newPassword)
     .withMessage('Passwords do not match')
@@ -147,6 +157,7 @@ const resendVerificationValidation = [
 ];
 
 module.exports = {
+  // Original names (kept for compatibility)
   registerValidation,
   loginValidation,
   forgotPasswordValidation,
@@ -154,5 +165,15 @@ module.exports = {
   refreshTokenValidation,
   verifyEmailValidation,
   changePasswordValidation,
-  resendVerificationValidation
+  resendVerificationValidation,
+
+  // Aliases expected by route files
+  register: registerValidation,
+  login: loginValidation,
+  forgotPassword: forgotPasswordValidation,
+  resetPassword: resetPasswordValidation,
+  refreshToken: refreshTokenValidation,
+  verifyEmail: verifyEmailValidation,
+  changePassword: changePasswordValidation,
+  resendVerification: resendVerificationValidation
 };

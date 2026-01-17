@@ -1,92 +1,160 @@
-const { validationResult } = require('express-validator');
-const { User, RefreshToken } = require('../models/postgres');
-const { AuditLog } = require('../models/mongodb');
-const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/jwt.util');
-const { hashPassword, comparePassword } = require('../utils/bcrypt.util');
-const { success, error, paginated } = require('../utils/response.util');
-const { AppError } = require('../middleware/error.middleware');
-const logger = require('../utils/logger.util');
-const crypto = require('crypto');
+const { validationResult } = require("express-validator");
+const { User, Company, AuditLog, Driver } = require("../models/mongodb");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} = require("../utils/jwt.util");
+const { hashPassword, comparePassword } = require("../utils/bcrypt.util");
+const { successResponse, errorResponse } = require("../utils/response.util");
+const { AppError } = require("../middleware/error.middleware");
+const logger = require("../utils/logger.util");
+const crypto = require("crypto");
 
 /**
- * Register a new user
+ * Register a new user (with optional company creation)
  * @route POST /api/auth/register
  */
 const register = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
-    const { email, password, firstName, lastName, phone, companyId, role } = req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      companyId,
+      role,
+      // Company fields for new company creation
+      company
+    } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      throw new AppError('User with this email already exists', 409);
+      throw new AppError("User with this email already exists", 409);
     }
 
-    // Hash password
-    const hashedPassword = await hashPassword(password);
+    let finalCompanyId = companyId;
+
+    // If company object is provided, create new company
+    if (company && company.name) {
+      // Check if company with same email exists
+      const existingCompany = await Company.findOne({ email: company.email || email });
+      if (existingCompany) {
+        // Use existing company
+        finalCompanyId = existingCompany._id;
+      } else {
+        // Create new company
+        const newCompany = await Company.create({
+          name: company.name,
+          email: company.email || email,
+          phone: company.phone || phone,
+          registrationNumber: company.registrationNumber || company.gstNumber,
+          taxId: company.gstNumber,
+          address: company.address?.street || company.address,
+          city: company.address?.city || company.city,
+          state: company.address?.state || company.state,
+          country: company.country || "India",
+          status: "active",
+          currency: "INR",
+          timezone: "Asia/Kolkata",
+        });
+        finalCompanyId = newCompany._id;
+
+        logger.info(`Company created: ${newCompany.name}`);
+      }
+    }
+
+    // Validate role against allowed values
+    const allowedRoles = ["super_admin", "manager", "dispatcher", "driver"];
+    const userRole = allowedRoles.includes(role) ? role : "manager";
 
     // Generate email verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
     const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create user
     const user = await User.create({
       email,
-      password: hashedPassword,
+      password,
       firstName,
       lastName,
       phone,
-      companyId,
-      role: role || 'customer',
+      companyId: finalCompanyId,
+      role: userRole,
       emailVerificationToken,
       emailVerificationExpires,
-      status: 'active'
+      status: "active",
     });
+
+    // Create Driver profile if role is driver
+    if (userRole === "driver") {
+      await Driver.create({
+        userId: user._id,
+        firstname: firstName,
+        lastname: lastName,
+        email: email,
+        phone: phone,
+        companyId: finalCompanyId,
+        status: "available",
+      });
+    }
+
+    // If this is a new company, update the company with owner
+    if (company && company.name && finalCompanyId) {
+      await Company.findByIdAndUpdate(finalCompanyId, { ownerId: user._id });
+    }
 
     // Log audit event
     await AuditLog.create({
-      userId: user.id,
-      action: 'USER_REGISTERED',
-      resource: 'User',
-      resourceId: user.id,
-      details: { email: user.email },
+      userId: user._id,
+      userEmail: user.email,
+      userRole: user.role,
+      companyId: finalCompanyId,
+      action: "register",
+      resource: "user",
+      resourceId: user._id,
+      description: `New user registered: ${user.email}`,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    });
-
-    // TODO: Send verification email
+      userAgent: req.get("User-Agent"),
+      success: true,
+    }).catch((err) => logger.debug("Audit log error:", err.message));
 
     // Generate tokens
-    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
-    const refreshToken = generateRefreshToken({ userId: user.id });
-
-    // Store refresh token
-    await RefreshToken.create({
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    const accessToken = generateAccessToken({
+      userId: user._id,
+      role: user.role,
     });
+    const refreshToken = generateRefreshToken({ userId: user._id });
 
     logger.info(`User registered: ${user.email}`);
 
-    return success(res, 'Registration successful', 201, {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role
+    return successResponse(
+      res,
+      {
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          role: user.role,
+          companyId: user.companyId,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
       },
-      tokens: {
-        accessToken,
-        refreshToken
-      }
-    });
+      "Registration successful",
+      201
+    );
   } catch (err) {
     next(err);
   }
@@ -100,78 +168,100 @@ const login = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { email, password } = req.body;
 
     // Find user
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
-      throw new AppError('Invalid credentials', 401);
+      throw new AppError("Invalid credentials", 401);
     }
 
     // Check if account is active
-    if (user.status !== 'active') {
-      throw new AppError('Account is not active. Please contact support.', 403);
+    if (user.status !== "active") {
+      throw new AppError("Account is not active. Please contact support.", 403);
     }
 
-    // Verify password
-    const isPasswordValid = await comparePassword(password, user.password);
+    // Verify password using the model method
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       // Log failed attempt
       await AuditLog.create({
-        userId: user.id,
-        action: 'LOGIN_FAILED',
-        resource: 'User',
-        resourceId: user.id,
-        details: { reason: 'Invalid password' },
+        userId: user._id,
+        action: "LOGIN_FAILED",
+        resource: "User",
+        resourceId: user._id,
+        details: { reason: "Invalid password" },
         ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
-      });
-      throw new AppError('Invalid credentials', 401);
+        userAgent: req.get("User-Agent"),
+      }).catch((err) => logger.debug("Audit log error:", err.message));
+      throw new AppError("Invalid credentials", 401);
+    }
+
+    // Auto-detect & fix Driver role
+    const driverProfile = await Driver.findOne({
+      $or: [
+        { userId: user._id },
+        { email: { $regex: new RegExp(`^${user.email}$`, "i") } }
+      ]
+    });
+
+    if (driverProfile) {
+      if (!driverProfile.userId) {
+        driverProfile.userId = user._id;
+        await driverProfile.save();
+      }
+      if (user.role !== "driver") {
+        user.role = "driver";
+        await user.save();
+      }
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
-    const refreshToken = generateRefreshToken({ userId: user.id });
-
-    // Store refresh token
-    await RefreshToken.create({
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    const accessToken = generateAccessToken({
+      userId: user._id,
+      role: user.role,
     });
+    const refreshToken = generateRefreshToken({ userId: user._id });
+
+
 
     // Update last login
-    await user.update({ lastLoginAt: new Date() });
+    await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
 
     // Log audit event
     await AuditLog.create({
-      userId: user.id,
-      action: 'USER_LOGIN',
-      resource: 'User',
-      resourceId: user.id,
+      userId: user._id,
+      action: "USER_LOGIN",
+      resource: "User",
+      resourceId: user._id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    });
+      userAgent: req.get("User-Agent"),
+    }).catch((err) => logger.debug("Audit log error:", err.message));
 
     logger.info(`User logged in: ${user.email}`);
 
-    return success(res, 'Login successful', 200, {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        companyId: user.companyId
+    return successResponse(
+      res,
+      {
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          companyId: user.companyId,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
       },
-      tokens: {
-        accessToken,
-        refreshToken
-      }
-    });
+      "Login successful",
+      200
+    );
   } catch (err) {
     next(err);
   }
@@ -183,26 +273,19 @@ const login = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
-
-    if (refreshToken) {
-      // Delete refresh token
-      await RefreshToken.destroy({ where: { token: refreshToken } });
-    }
-
     // Log audit event
     if (req.user) {
       await AuditLog.create({
-        userId: req.user.id,
-        action: 'USER_LOGOUT',
-        resource: 'User',
-        resourceId: req.user.id,
+        userId: req.user._id,
+        action: "USER_LOGOUT",
+        resource: "User",
+        resourceId: req.user._id,
         ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
+        userAgent: req.get("User-Agent"),
       });
     }
 
-    return success(res, 'Logout successful', 200);
+    return successResponse(res, "Logout successful", 200);
   } catch (err) {
     next(err);
   }
@@ -217,52 +300,43 @@ const refreshAccessToken = async (req, res, next) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      throw new AppError('Refresh token is required', 400);
+      throw new AppError("Refresh token is required", 400);
     }
 
     // Verify refresh token
-    const decoded = verifyToken(refreshToken, 'refresh');
-    if (!decoded) {
-      throw new AppError('Invalid refresh token', 401);
-    }
-
-    // Check if token exists in database
-    const storedToken = await RefreshToken.findOne({
-      where: { token: refreshToken, userId: decoded.userId }
-    });
-
-    if (!storedToken) {
-      throw new AppError('Refresh token not found', 401);
-    }
-
-    // Check if token is expired
-    if (new Date() > storedToken.expiresAt) {
-      await storedToken.destroy();
-      throw new AppError('Refresh token expired', 401);
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      throw new AppError("Invalid or expired refresh token", 401);
     }
 
     // Get user
-    const user = await User.findByPk(decoded.userId);
-    if (!user || user.status !== 'active') {
-      throw new AppError('User not found or inactive', 401);
+    const user = await User.findById(decoded.userId);
+    if (!user || user.status !== "active") {
+      throw new AppError("User not found or inactive", 401);
     }
 
     // Generate new access token
-    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
-
-    // Optionally rotate refresh token
-    const newRefreshToken = generateRefreshToken({ userId: user.id });
-    await storedToken.update({
-      token: newRefreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const accessToken = generateAccessToken({
+      userId: user._id,
+      role: user.role,
     });
 
-    return success(res, 'Token refreshed', 200, {
-      tokens: {
-        accessToken,
-        refreshToken: newRefreshToken
-      }
-    });
+    // Rotate refresh token
+    const newRefreshToken = generateRefreshToken({ userId: user._id });
+
+    return successResponse(
+      res,
+      {
+        tokens: {
+          accessToken,
+          refreshToken: newRefreshToken,
+        },
+      },
+      "Token refreshed",
+      200
+    );
   } catch (err) {
     next(err);
   }
@@ -276,42 +350,54 @@ const forgotPassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { email } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       // Return success even if user not found (security)
-      return success(res, 'If an account exists, a password reset email has been sent', 200);
+      return successResponse(
+        res,
+        null,
+        "If an account exists, a password reset email has been sent",
+        200
+      );
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
     const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    await user.update({
+    await User.findByIdAndUpdate(user._id, {
       passwordResetToken: resetTokenHash,
-      passwordResetExpires: resetTokenExpires
+      passwordResetExpires: resetTokenExpires,
     });
 
     // Log audit event
     await AuditLog.create({
-      userId: user.id,
-      action: 'PASSWORD_RESET_REQUESTED',
-      resource: 'User',
-      resourceId: user.id,
+      userId: user._id,
+      action: "PASSWORD_RESET_REQUESTED",
+      resource: "User",
+      resourceId: user._id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     // TODO: Send password reset email with resetToken
 
     logger.info(`Password reset requested for: ${user.email}`);
 
-    return success(res, 'If an account exists, a password reset email has been sent', 200);
+    return successResponse(
+      res,
+      "If an account exists, a password reset email has been sent",
+      200
+    );
   } catch (err) {
     next(err);
   }
@@ -325,56 +411,51 @@ const resetPassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { token, password } = req.body;
 
     // Hash the token for comparison
-    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
     // Find user with valid reset token
     const user = await User.findOne({
-      where: {
-        passwordResetToken: resetTokenHash
-      }
+      passwordResetToken: resetTokenHash,
     });
 
     if (!user) {
-      throw new AppError('Invalid or expired reset token', 400);
+      throw new AppError("Invalid or expired reset token", 400);
     }
 
     // Check if token is expired
     if (new Date() > user.passwordResetExpires) {
-      throw new AppError('Reset token has expired', 400);
+      throw new AppError("Reset token has expired", 400);
     }
 
-    // Hash new password
-    const hashedPassword = await hashPassword(password);
-
-    // Update password and clear reset token
-    await user.update({
-      password: hashedPassword,
+    // Update password and clear reset token (Mongoose will hash it)
+    await User.findByIdAndUpdate(user._id, {
+      password: password,
       passwordResetToken: null,
-      passwordResetExpires: null
+      passwordResetExpires: null,
     });
-
-    // Invalidate all refresh tokens
-    await RefreshToken.destroy({ where: { userId: user.id } });
 
     // Log audit event
     await AuditLog.create({
-      userId: user.id,
-      action: 'PASSWORD_RESET_COMPLETED',
-      resource: 'User',
-      resourceId: user.id,
+      userId: user._id,
+      action: "PASSWORD_RESET_COMPLETED",
+      resource: "User",
+      resourceId: user._id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     logger.info(`Password reset completed for: ${user.email}`);
 
-    return success(res, 'Password reset successful', 200);
+    return successResponse(res, "Password reset successful", 200);
   } catch (err) {
     next(err);
   }
@@ -389,40 +470,40 @@ const verifyEmail = async (req, res, next) => {
     const { token } = req.body;
 
     if (!token) {
-      throw new AppError('Verification token is required', 400);
+      throw new AppError("Verification token is required", 400);
     }
 
     const user = await User.findOne({
-      where: { emailVerificationToken: token }
+      emailVerificationToken: token,
     });
 
     if (!user) {
-      throw new AppError('Invalid verification token', 400);
+      throw new AppError("Invalid verification token", 400);
     }
 
     if (new Date() > user.emailVerificationExpires) {
-      throw new AppError('Verification token has expired', 400);
+      throw new AppError("Verification token has expired", 400);
     }
 
-    await user.update({
+    await User.findByIdAndUpdate(user._id, {
       emailVerified: true,
       emailVerificationToken: null,
-      emailVerificationExpires: null
+      emailVerificationExpires: null,
     });
 
     // Log audit event
     await AuditLog.create({
-      userId: user.id,
-      action: 'EMAIL_VERIFIED',
-      resource: 'User',
-      resourceId: user.id,
+      userId: user._id,
+      action: "EMAIL_VERIFIED",
+      resource: "User",
+      resourceId: user._id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     logger.info(`Email verified for: ${user.email}`);
 
-    return success(res, 'Email verified successfully', 200);
+    return successResponse(res, "Email verified successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -436,27 +517,35 @@ const resendVerification = async (req, res, next) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
-      return success(res, 'If an account exists, a verification email has been sent', 200);
+      return successResponse(
+        res,
+        "If an account exists, a verification email has been sent",
+        200
+      );
     }
 
     if (user.emailVerified) {
-      return success(res, 'Email is already verified', 200);
+      return successResponse(res, "Email is already verified", 200);
     }
 
     // Generate new verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
     const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await user.update({
+    await User.findByIdAndUpdate(user._id, {
       emailVerificationToken,
-      emailVerificationExpires
+      emailVerificationExpires,
     });
 
     // TODO: Send verification email
 
-    return success(res, 'If an account exists, a verification email has been sent', 200);
+    return successResponse(
+      res,
+      "If an account exists, a verification email has been sent",
+      200
+    );
   } catch (err) {
     next(err);
   }
@@ -470,46 +559,39 @@ const changePassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id;
+    const userId = req.user._id;
 
-    const user = await User.findByPk(userId);
+    const user = await User.findById(userId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new AppError("User not found", 404);
     }
 
     // Verify current password
-    const isPasswordValid = await comparePassword(currentPassword, user.password);
+    const isPasswordValid = await user.comparePassword(currentPassword);
     if (!isPasswordValid) {
-      throw new AppError('Current password is incorrect', 400);
+      throw new AppError("Current password is incorrect", 400);
     }
 
-    // Hash new password
-    const hashedPassword = await hashPassword(newPassword);
-
-    await user.update({ password: hashedPassword });
-
-    // Invalidate all refresh tokens except current
-    await RefreshToken.destroy({
-      where: { userId: user.id }
-    });
+    // Update password (Mongoose pre-save middleware will hash it)
+    await User.findByIdAndUpdate(userId, { password: newPassword });
 
     // Log audit event
     await AuditLog.create({
-      userId: user.id,
-      action: 'PASSWORD_CHANGED',
-      resource: 'User',
-      resourceId: user.id,
+      userId: user._id,
+      action: "PASSWORD_CHANGED",
+      resource: "User",
+      resourceId: user._id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     logger.info(`Password changed for: ${user.email}`);
 
-    return success(res, 'Password changed successfully', 200);
+    return successResponse(res, "Password changed successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -521,15 +603,15 @@ const changePassword = async (req, res, next) => {
  */
 const getMe = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password', 'passwordResetToken', 'passwordResetExpires', 'emailVerificationToken', 'emailVerificationExpires'] }
-    });
+    const user = await User.findById(req.user._id).select(
+      "-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires"
+    );
 
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new AppError("User not found", 404);
     }
 
-    return success(res, 'User profile retrieved', 200, { user });
+    return successResponse(res, "User profile retrieved", 200, { user });
   } catch (err) {
     next(err);
   }
@@ -545,5 +627,5 @@ module.exports = {
   verifyEmail,
   resendVerification,
   changePassword,
-  getMe
+  getMe,
 };

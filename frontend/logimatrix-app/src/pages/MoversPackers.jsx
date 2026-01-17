@@ -1,9 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CheckCircle, Clock, Shield, Truck } from 'lucide-react';
 
 const MoversPackers = () => {
+    const navigate = useNavigate();
+
     return (
         <div className="min-h-screen bg-[#020617] text-white pt-20">
             {/* Hero */}
@@ -17,7 +20,13 @@ const MoversPackers = () => {
                         Premium moving services for homes and offices. Professional packing, safe handling, and on-time delivery.
                     </p>
                     <div className="flex justify-center gap-4">
-                        <Button size="lg" variant="primary">Get a Quote</Button>
+                        <Button
+                            size="lg"
+                            variant="primary"
+                            onClick={() => navigate('/register?role=shipper')}
+                        >
+                            Get Started as Business
+                        </Button>
                         <Button size="lg" variant="secondary">How it Works</Button>
                     </div>
                 </div>

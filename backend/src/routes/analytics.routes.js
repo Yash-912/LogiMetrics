@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const analyticsController = require('../controllers/analytics.controller');
-const { analytics: analyticsValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const analyticsController = require("../controllers/analytics.controller");
+const { analytics: analyticsValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -16,10 +16,9 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-    '/dashboard',
-    analyticsValidator.getDashboardValidation,
-    validate,
-    analyticsController.getDashboard
+  "/dashboard",
+  validate(analyticsValidator.getDashboardValidation),
+  analyticsController.getDashboard
 );
 
 /**
@@ -28,10 +27,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/shipments',
-    analyticsValidator.getShipmentAnalyticsValidation,
-    validate,
-    analyticsController.getShipmentAnalytics
+  "/shipments",
+  validate(analyticsValidator.getShipmentAnalyticsValidation),
+  analyticsController.getShipmentAnalytics
 );
 
 /**
@@ -40,11 +38,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.get(
-    '/revenue',
-    authorize(['admin', 'manager']),
-    analyticsValidator.getDashboardValidation,
-    validate,
-    analyticsController.getRevenueAnalytics
+  "/revenue",
+  authorize(["admin", "manager"]),
+  validate(analyticsValidator.getDashboardValidation),
+  analyticsController.getRevenueAnalytics
 );
 
 /**
@@ -53,10 +50,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/fleet',
-    analyticsValidator.getFleetAnalyticsValidation,
-    validate,
-    analyticsController.getFleetAnalytics
+  "/fleet",
+  validate(analyticsValidator.getFleetAnalyticsValidation),
+  analyticsController.getFleetAnalytics
 );
 
 /**
@@ -65,10 +61,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/drivers',
-    analyticsValidator.getDriverAnalyticsValidation,
-    validate,
-    analyticsController.getDriverAnalytics
+  "/drivers",
+  validate(analyticsValidator.getDriverAnalyticsValidation),
+  analyticsController.getDriverAnalytics
 );
 
 /**
@@ -77,11 +72,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.get(
-    '/kpis',
-    authorize(['admin', 'manager']),
-    analyticsValidator.getKPIValidation,
-    validate,
-    analyticsController.getKPIs
+  "/kpis",
+  authorize(["admin", "manager"]),
+  validate(analyticsValidator.getKPIValidation),
+  analyticsController.getKPIs
 );
 
 /**
@@ -90,11 +84,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/export',
-    authorize(['admin', 'manager']),
-    analyticsValidator.exportDataValidation,
-    validate,
-    analyticsController.exportReport
+  "/export",
+  authorize(["admin", "manager"]),
+  validate(analyticsValidator.exportDataValidation),
+  analyticsController.exportReport
 );
 
 /**
@@ -102,10 +95,7 @@ router.post(
  * @desc    Get real-time metrics
  * @access  Private
  */
-router.get(
-    '/realtime',
-    analyticsController.getRealTimeMetrics
-);
+router.get("/realtime", analyticsController.getRealTimeMetrics);
 
 /**
  * @route   POST /api/analytics/reports
@@ -113,11 +103,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.post(
-    '/reports',
-    authorize(['admin', 'manager']),
-    analyticsValidator.generateReportValidation,
-    validate,
-    analyticsController.exportReport
+  "/reports",
+  authorize(["admin", "manager"]),
+  validate(analyticsValidator.generateReportValidation),
+  analyticsController.exportReport
 );
 
 /**
@@ -126,10 +115,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/routes',
-    analyticsValidator.getRouteAnalyticsValidation,
-    validate,
-    analyticsController.getShipmentAnalytics
+  "/routes",
+  validate(analyticsValidator.getRouteAnalyticsValidation),
+  analyticsController.getShipmentAnalytics
 );
 
 /**
@@ -138,11 +126,10 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.get(
-    '/comparison',
-    authorize(['admin', 'manager']),
-    analyticsValidator.getComparisonValidation,
-    validate,
-    analyticsController.getShipmentAnalytics
+  "/comparison",
+  authorize(["admin", "manager"]),
+  validate(analyticsValidator.getComparisonValidation),
+  analyticsController.getShipmentAnalytics
 );
 
 /**
@@ -151,11 +138,11 @@ router.get(
  * @access  Private (Admin, Manager)
  */
 router.get(
-    '/trends',
-    authorize(['admin', 'manager']),
-    analyticsValidator.getTrendValidation,
-    validate,
-    analyticsController.getShipmentAnalytics
+  "/trends",
+  authorize(["admin", "manager"]),
+  analyticsValidator.getTrendValidation,
+  validate,
+  analyticsController.getShipmentAnalytics
 );
 
 module.exports = router;

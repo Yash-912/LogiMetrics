@@ -1,59 +1,73 @@
 /**
- * PostgreSQL Database Configuration
- * Using Sequelize ORM
+ * MongoDB Database Configuration
  */
 
-const { Sequelize } = require('sequelize');
-const logger = require('../utils/logger.util');
+const mongoose = require("mongoose");
+const logger = require("../utils/logger.util");
 
-const config = {
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT) || 5432,
-  username: process.env.POSTGRES_USER || 'logimetrics',
-  password: process.env.POSTGRES_PASSWORD || 'logimetrics123',
-  database: process.env.POSTGRES_DB || 'logistics',
-  dialect: 'postgres',
-  logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
-  pool: {
-    max: 20,
-    min: 5,
-    acquire: 30000,
-    idle: 10000
-  },
-  define: {
-    timestamps: true,
-    underscored: true,
-    freezeTableName: true
-  }
-};
+const mongoUri =
+  process.env.MONGODB_URI ||
+  "mongodb+srv://logimatrix:LogiMetrics123@logimatrix-shard-00-00.fwvtwz8.mongodb.net:27017/logi_matrix?retryWrites=true&w=majority";
 
-const sequelize = new Sequelize(
-  config.database,
-  config.username,
-  config.password,
-  config
-);
+let isConnected = false;
 
+/**
+ * Initialize MongoDB Connection
+ */
 async function initializePostgres() {
+  if (isConnected) {
+    logger.info("[MongoDB] Connection already established");
+    return true;
+  }
+
   try {
-    await sequelize.authenticate();
-    logger.info('PostgreSQL connection established successfully');
-    
-    // Sync models in development (be careful in production)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      logger.info('Database models synchronized');
-    }
-    
-    return sequelize;
+    const connection = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+    });
+
+    isConnected = true;
+    logger.info(
+      `[MongoDB] Connected to database: ${connection.connection.name}`
+    );
+    logger.info(`[MongoDB] Connection host: ${connection.connection.host}`);
+
+    return connection;
   } catch (error) {
-    logger.error('Unable to connect to PostgreSQL:', error);
-    throw error;
+    logger.error("[MongoDB] Connection failed:", error.message);
+    return null;
+  }
+}
+
+/**
+ * Get MongoDB Connection Status
+ */
+function getMongoDBStatus() {
+  return {
+    connected: isConnected && mongoose.connection.readyState === 1,
+    readyState: mongoose.connection.readyState,
+    host: mongoose.connection.host,
+    name: mongoose.connection.name,
+  };
+}
+
+/**
+ * Close MongoDB Connection
+ */
+async function closeMongoDBConnection() {
+  try {
+    await mongoose.disconnect();
+    isConnected = false;
+    logger.info("[MongoDB] Disconnected successfully");
+  } catch (error) {
+    logger.error("[MongoDB] Disconnection error:", error.message);
   }
 }
 
 module.exports = {
-  sequelize,
   initializePostgres,
-  Sequelize
+  getMongoDBStatus,
+  closeMongoDBConnection,
+  mongoose,
+  Sequelize: mongoose, // For compatibility
+  sequelize: mongoose, // For compatibility
 };

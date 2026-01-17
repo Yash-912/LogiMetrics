@@ -1,12 +1,22 @@
-const { validationResult } = require('express-validator');
-const { Op, Sequelize } = require('sequelize');
-const { PricingRule, PricingZone, Quote, Company, Shipment, Vehicle } = require('../models/postgres');
-const { AuditLog } = require('../models/mongodb');
-const { success, error } = require('../utils/response.util');
-const { AppError } = require('../middleware/error.middleware');
-const { calculateDistance, calculateFuelCost } = require('../utils/calculations.util');
-const { redisClient } = require('../config/redis');
-const logger = require('../utils/logger.util');
+const { validationResult } = require("express-validator");
+const { Op, Sequelize } = require("sequelize");
+const {
+  PricingRule,
+  PricingZone,
+  Quote,
+  Company,
+  Shipment,
+  Vehicle,
+} = require("../models/mongodb");
+const { AuditLog } = require("../models/mongodb");
+const { successResponse, errorResponse } = require("../utils/response.util");
+const { AppError } = require("../middleware/error.middleware");
+const {
+  calculateDistance,
+  calculateFuelCost,
+} = require("../utils/calculations.util");
+const { redisClient } = require("../config/redis");
+const logger = require("../utils/logger.util");
 
 /**
  * Get all pricing rules
@@ -21,18 +31,15 @@ const getPricingRules = async (req, res, next) => {
       status,
       vehicleType,
       search,
-      sortBy = 'priority',
-      sortOrder = 'DESC'
+      sortBy = "priority",
+      sortOrder = "DESC",
     } = req.query;
 
     const where = {};
 
     // Company filter
-    if (req.user.role !== 'admin') {
-      where[Op.or] = [
-        { companyId: req.user.companyId },
-        { isGlobal: true }
-      ];
+    if (req.user.role !== "admin") {
+      where[Op.or] = [{ companyId: req.user.companyId }, { isGlobal: true }];
     }
 
     if (type) where.type = type;
@@ -47,22 +54,20 @@ const getPricingRules = async (req, res, next) => {
 
     const { rows: rules, count } = await PricingRule.findAndCountAll({
       where,
-      include: [
-        { model: Company, as: 'company', attributes: ['id', 'name'] }
-      ],
+      include: [{ model: Company, as: "company", attributes: ["id", "name"] }],
       order: [[sortBy, sortOrder]],
       limit: parseInt(limit),
-      offset
+      offset,
     });
 
-    return success(res, 'Pricing rules retrieved', 200, {
+    return successResponse(res, "Pricing rules retrieved", 200, {
       rules,
       pagination: {
         total: count,
         pages: Math.ceil(count / limit),
         page: parseInt(page),
-        limit: parseInt(limit)
-      }
+        limit: parseInt(limit),
+      },
     });
   } catch (err) {
     next(err);
@@ -78,21 +83,23 @@ const getPricingRuleById = async (req, res, next) => {
     const { id } = req.params;
 
     const rule = await PricingRule.findByPk(id, {
-      include: [
-        { model: Company, as: 'company', attributes: ['id', 'name'] }
-      ]
+      include: [{ model: Company, as: "company", attributes: ["id", "name"] }],
     });
 
     if (!rule) {
-      throw new AppError('Pricing rule not found', 404);
+      throw new AppError("Pricing rule not found", 404);
     }
 
     // Authorization check
-    if (!rule.isGlobal && req.user.role !== 'admin' && rule.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to access this pricing rule', 403);
+    if (
+      !rule.isGlobal &&
+      req.user.role !== "admin" &&
+      rule.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to access this pricing rule", 403);
     }
 
-    return success(res, 'Pricing rule retrieved', 200, { rule });
+    return successResponse(res, "Pricing rule retrieved", 200, { rule });
   } catch (err) {
     next(err);
   }
@@ -106,7 +113,7 @@ const createPricingRule = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -127,12 +134,12 @@ const createPricingRule = async (req, res, next) => {
       effectiveFrom,
       effectiveTo,
       conditions,
-      isGlobal
+      isGlobal,
     } = req.body;
 
     // Only admin can create global rules
-    if (isGlobal && req.user.role !== 'admin') {
-      throw new AppError('Only admin can create global pricing rules', 403);
+    if (isGlobal && req.user.role !== "admin") {
+      throw new AppError("Only admin can create global pricing rules", 403);
     }
 
     const rule = await PricingRule.create({
@@ -156,7 +163,7 @@ const createPricingRule = async (req, res, next) => {
       isGlobal: isGlobal || false,
       companyId: isGlobal ? null : req.user.companyId,
       createdBy: req.user.id,
-      status: 'active'
+      status: "active",
     });
 
     // Invalidate pricing cache
@@ -165,17 +172,22 @@ const createPricingRule = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'PRICING_RULE_CREATED',
-      resource: 'PricingRule',
+      action: "PRICING_RULE_CREATED",
+      resource: "PricingRule",
       resourceId: rule.id,
       details: { name, type },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    logger.info('Pricing rule created', { ruleId: rule.id, userId: req.user.id });
+    logger.info("Pricing rule created", {
+      ruleId: rule.id,
+      userId: req.user.id,
+    });
 
-    return success(res, 'Pricing rule created successfully', 201, { rule });
+    return successResponse(res, "Pricing rule created successfully", 201, {
+      rule,
+    });
   } catch (err) {
     next(err);
   }
@@ -189,7 +201,7 @@ const updatePricingRule = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
@@ -197,25 +209,29 @@ const updatePricingRule = async (req, res, next) => {
 
     const rule = await PricingRule.findByPk(id);
     if (!rule) {
-      throw new AppError('Pricing rule not found', 404);
+      throw new AppError("Pricing rule not found", 404);
     }
 
     // Authorization check
-    if (rule.isGlobal && req.user.role !== 'admin') {
-      throw new AppError('Only admin can update global pricing rules', 403);
+    if (rule.isGlobal && req.user.role !== "admin") {
+      throw new AppError("Only admin can update global pricing rules", 403);
     }
-    if (!rule.isGlobal && req.user.role !== 'admin' && rule.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to update this pricing rule', 403);
+    if (
+      !rule.isGlobal &&
+      req.user.role !== "admin" &&
+      rule.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to update this pricing rule", 403);
     }
 
     // Prevent changing global status by non-admin
-    if (updateData.isGlobal !== undefined && req.user.role !== 'admin') {
+    if (updateData.isGlobal !== undefined && req.user.role !== "admin") {
       delete updateData.isGlobal;
     }
 
     await rule.update({
       ...updateData,
-      updatedBy: req.user.id
+      updatedBy: req.user.id,
     });
 
     // Invalidate pricing cache
@@ -224,15 +240,17 @@ const updatePricingRule = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'PRICING_RULE_UPDATED',
-      resource: 'PricingRule',
+      action: "PRICING_RULE_UPDATED",
+      resource: "PricingRule",
       resourceId: rule.id,
       changes: updateData,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Pricing rule updated successfully', 200, { rule });
+    return successResponse(res, "Pricing rule updated successfully", 200, {
+      rule,
+    });
   } catch (err) {
     next(err);
   }
@@ -248,15 +266,19 @@ const deletePricingRule = async (req, res, next) => {
 
     const rule = await PricingRule.findByPk(id);
     if (!rule) {
-      throw new AppError('Pricing rule not found', 404);
+      throw new AppError("Pricing rule not found", 404);
     }
 
     // Authorization check
-    if (rule.isGlobal && req.user.role !== 'admin') {
-      throw new AppError('Only admin can delete global pricing rules', 403);
+    if (rule.isGlobal && req.user.role !== "admin") {
+      throw new AppError("Only admin can delete global pricing rules", 403);
     }
-    if (!rule.isGlobal && req.user.role !== 'admin' && rule.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized to delete this pricing rule', 403);
+    if (
+      !rule.isGlobal &&
+      req.user.role !== "admin" &&
+      rule.companyId !== req.user.companyId
+    ) {
+      throw new AppError("Not authorized to delete this pricing rule", 403);
     }
 
     await rule.destroy();
@@ -267,14 +289,14 @@ const deletePricingRule = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'PRICING_RULE_DELETED',
-      resource: 'PricingRule',
+      action: "PRICING_RULE_DELETED",
+      resource: "PricingRule",
       resourceId: id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Pricing rule deleted successfully', 200);
+    return successResponse(res, "Pricing rule deleted successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -289,20 +311,17 @@ const getPricingZones = async (req, res, next) => {
     const { status } = req.query;
 
     const where = {};
-    if (req.user.role !== 'admin') {
-      where[Op.or] = [
-        { companyId: req.user.companyId },
-        { isGlobal: true }
-      ];
+    if (req.user.role !== "admin") {
+      where[Op.or] = [{ companyId: req.user.companyId }, { isGlobal: true }];
     }
     if (status) where.status = status;
 
     const zones = await PricingZone.findAll({
       where,
-      order: [['name', 'ASC']]
+      order: [["name", "ASC"]],
     });
 
-    return success(res, 'Pricing zones retrieved', 200, { zones });
+    return successResponse(res, "Pricing zones retrieved", 200, { zones });
   } catch (err) {
     next(err);
   }
@@ -316,7 +335,7 @@ const createPricingZone = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -331,12 +350,12 @@ const createPricingZone = async (req, res, next) => {
       countries,
       multiplier,
       surcharge,
-      isGlobal
+      isGlobal,
     } = req.body;
 
     // Only admin can create global zones
-    if (isGlobal && req.user.role !== 'admin') {
-      throw new AppError('Only admin can create global pricing zones', 403);
+    if (isGlobal && req.user.role !== "admin") {
+      throw new AppError("Only admin can create global pricing zones", 403);
     }
 
     const zone = await PricingZone.create({
@@ -354,13 +373,15 @@ const createPricingZone = async (req, res, next) => {
       isGlobal: isGlobal || false,
       companyId: isGlobal ? null : req.user.companyId,
       createdBy: req.user.id,
-      status: 'active'
+      status: "active",
     });
 
     // Invalidate pricing cache
     await invalidatePricingCache(req.user.companyId);
 
-    return success(res, 'Pricing zone created successfully', 201, { zone });
+    return successResponse(res, "Pricing zone created successfully", 201, {
+      zone,
+    });
   } catch (err) {
     next(err);
   }
@@ -374,7 +395,7 @@ const calculateQuote = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -386,7 +407,7 @@ const calculateQuote = async (req, res, next) => {
       serviceType,
       pickupDate,
       deliveryDate,
-      additionalServices
+      additionalServices,
     } = req.body;
 
     // Calculate distance
@@ -401,7 +422,7 @@ const calculateQuote = async (req, res, next) => {
     );
 
     if (rules.length === 0) {
-      throw new AppError('No applicable pricing rules found', 400);
+      throw new AppError("No applicable pricing rules found", 400);
     }
 
     // Use highest priority rule
@@ -409,7 +430,7 @@ const calculateQuote = async (req, res, next) => {
 
     // Calculate base price
     let basePrice = primaryRule.baseRate || 0;
-    
+
     // Add distance-based pricing
     if (primaryRule.ratePerMile && distance.miles) {
       basePrice += primaryRule.ratePerMile * distance.miles;
@@ -423,7 +444,7 @@ const calculateQuote = async (req, res, next) => {
     // Apply weight range adjustments
     if (primaryRule.weightRanges && weight) {
       const weightRange = primaryRule.weightRanges.find(
-        r => weight >= r.minWeight && weight <= r.maxWeight
+        (r) => weight >= r.minWeight && weight <= r.maxWeight
       );
       if (weightRange?.multiplier) {
         basePrice *= weightRange.multiplier;
@@ -433,7 +454,8 @@ const calculateQuote = async (req, res, next) => {
     // Apply distance range adjustments
     if (primaryRule.distanceRanges && distance.miles) {
       const distanceRange = primaryRule.distanceRanges.find(
-        r => distance.miles >= r.minDistance && distance.miles <= r.maxDistance
+        (r) =>
+          distance.miles >= r.minDistance && distance.miles <= r.maxDistance
       );
       if (distanceRange?.multiplier) {
         basePrice *= distanceRange.multiplier;
@@ -445,12 +467,13 @@ const calculateQuote = async (req, res, next) => {
     if (primaryRule.surcharges) {
       for (const surcharge of primaryRule.surcharges) {
         if (await isSurchargeApplicable(surcharge, req.body)) {
-          const amount = surcharge.type === 'percentage' 
-            ? basePrice * (surcharge.value / 100)
-            : surcharge.value;
+          const amount =
+            surcharge.type === "percentage"
+              ? basePrice * (surcharge.value / 100)
+              : surcharge.value;
           surcharges.push({
             name: surcharge.name,
-            amount
+            amount,
           });
         }
       }
@@ -484,9 +507,10 @@ const calculateQuote = async (req, res, next) => {
     if (primaryRule.discounts) {
       for (const discount of primaryRule.discounts) {
         if (await isDiscountApplicable(discount, req.body, req.user)) {
-          const amount = discount.type === 'percentage'
-            ? basePrice * (discount.value / 100)
-            : discount.value;
+          const amount =
+            discount.type === "percentage"
+              ? basePrice * (discount.value / 100)
+              : discount.value;
           totalDiscount += amount;
         }
       }
@@ -520,12 +544,12 @@ const calculateQuote = async (req, res, next) => {
       subtotal: Math.round(subtotal * 100) / 100,
       tax: Math.round(tax * 100) / 100,
       total: Math.round(total * 100) / 100,
-      currency: 'USD',
+      currency: "USD",
       validUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      ruleApplied: primaryRule.name
+      ruleApplied: primaryRule.name,
     };
 
-    return success(res, 'Quote calculated', 200, { quote });
+    return successResponse(res, "Quote calculated", 200, { quote });
   } catch (err) {
     next(err);
   }
@@ -539,7 +563,7 @@ const saveQuote = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return errorResponse(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -551,7 +575,7 @@ const saveQuote = async (req, res, next) => {
       serviceType,
       customerEmail,
       customerName,
-      notes
+      notes,
     } = req.body;
 
     const quote = await Quote.create({
@@ -567,22 +591,22 @@ const saveQuote = async (req, res, next) => {
       customerName,
       notes,
       ...quoteData,
-      status: 'pending',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      status: "pending",
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'QUOTE_CREATED',
-      resource: 'Quote',
+      action: "QUOTE_CREATED",
+      resource: "Quote",
       resourceId: quote.id,
       details: { quoteNumber: quote.quoteNumber },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Quote saved successfully', 201, { quote });
+    return successResponse(res, "Quote saved successfully", 201, { quote });
   } catch (err) {
     next(err);
   }
@@ -598,8 +622,8 @@ const getQuotes = async (req, res, next) => {
       page = 1,
       limit = 20,
       status,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC'
+      sortBy = "createdAt",
+      sortOrder = "DESC",
     } = req.query;
 
     const where = { companyId: req.user.companyId };
@@ -611,17 +635,17 @@ const getQuotes = async (req, res, next) => {
       where,
       order: [[sortBy, sortOrder]],
       limit: parseInt(limit),
-      offset
+      offset,
     });
 
-    return success(res, 'Quotes retrieved', 200, {
+    return successResponse(res, "Quotes retrieved", 200, {
       quotes,
       pagination: {
         total: count,
         pages: Math.ceil(count / limit),
         page: parseInt(page),
-        limit: parseInt(limit)
-      }
+        limit: parseInt(limit),
+      },
     });
   } catch (err) {
     next(err);
@@ -638,19 +662,19 @@ const convertQuoteToShipment = async (req, res, next) => {
 
     const quote = await Quote.findByPk(id);
     if (!quote) {
-      throw new AppError('Quote not found', 404);
+      throw new AppError("Quote not found", 404);
     }
 
     if (quote.companyId !== req.user.companyId) {
-      throw new AppError('Not authorized', 403);
+      throw new AppError("Not authorized", 403);
     }
 
-    if (quote.status !== 'pending' && quote.status !== 'accepted') {
-      throw new AppError('Quote cannot be converted', 400);
+    if (quote.status !== "pending" && quote.status !== "accepted") {
+      throw new AppError("Quote cannot be converted", 400);
     }
 
     if (new Date(quote.expiresAt) < new Date()) {
-      throw new AppError('Quote has expired', 400);
+      throw new AppError("Quote has expired", 400);
     }
 
     // Create shipment from quote
@@ -663,30 +687,30 @@ const convertQuoteToShipment = async (req, res, next) => {
       serviceType: quote.serviceType,
       price: quote.total,
       quoteId: quote.id,
-      status: 'pending',
-      createdBy: req.user.id
+      status: "pending",
+      createdBy: req.user.id,
     });
 
     // Update quote status
     await quote.update({
-      status: 'converted',
-      convertedToShipmentId: shipment.id
+      status: "converted",
+      convertedToShipmentId: shipment.id,
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'QUOTE_CONVERTED',
-      resource: 'Quote',
+      action: "QUOTE_CONVERTED",
+      resource: "Quote",
       resourceId: quote.id,
       details: { shipmentId: shipment.id },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Quote converted to shipment', 200, { 
+    return successResponse(res, "Quote converted to shipment", 200, {
       quote,
-      shipment
+      shipment,
     });
   } catch (err) {
     next(err);
@@ -700,18 +724,19 @@ const convertQuoteToShipment = async (req, res, next) => {
 const getFuelSurcharge = async (req, res, next) => {
   try {
     // Get current fuel price and calculate surcharge
-    const baseFuelPrice = 3.50; // Base price when surcharge = 0
+    const baseFuelPrice = 3.5; // Base price when surcharge = 0
     const currentFuelPrice = await getCurrentFuelPrice();
-    
-    const surchargePercentage = Math.max(0, 
+
+    const surchargePercentage = Math.max(
+      0,
       ((currentFuelPrice - baseFuelPrice) / baseFuelPrice) * 100
     );
 
-    return success(res, 'Fuel surcharge retrieved', 200, {
+    return successResponse(res, "Fuel surcharge retrieved", 200, {
       baseFuelPrice,
       currentFuelPrice,
       surchargePercentage: Math.round(surchargePercentage * 100) / 100,
-      effectiveDate: new Date()
+      effectiveDate: new Date(),
     });
   } catch (err) {
     next(err);
@@ -721,36 +746,36 @@ const getFuelSurcharge = async (req, res, next) => {
 // Helper functions
 const getApplicableRules = async (companyId, vehicleType, weight, distance) => {
   const where = {
-    status: 'active',
-    [Op.or]: [
-      { companyId },
-      { isGlobal: true }
-    ],
+    status: "active",
+    [Op.or]: [{ companyId }, { isGlobal: true }],
     [Op.and]: [
       {
         [Op.or]: [
           { effectiveFrom: null },
-          { effectiveFrom: { [Op.lte]: new Date() } }
-        ]
+          { effectiveFrom: { [Op.lte]: new Date() } },
+        ],
       },
       {
         [Op.or]: [
           { effectiveTo: null },
-          { effectiveTo: { [Op.gte]: new Date() } }
-        ]
-      }
-    ]
+          { effectiveTo: { [Op.gte]: new Date() } },
+        ],
+      },
+    ],
   };
 
   if (vehicleType) {
     where[Op.or].push({
-      vehicleTypes: { [Op.contains]: [vehicleType] }
+      vehicleTypes: { [Op.contains]: [vehicleType] },
     });
   }
 
   return PricingRule.findAll({
     where,
-    order: [['priority', 'DESC'], ['isGlobal', 'ASC']]
+    order: [
+      ["priority", "DESC"],
+      ["isGlobal", "ASC"],
+    ],
   });
 };
 
@@ -785,7 +810,7 @@ const invalidatePricingCache = async (companyId) => {
       await redisClient.del(keys);
     }
   } catch (err) {
-    logger.error('Failed to invalidate pricing cache', err);
+    logger.error("Failed to invalidate pricing cache", err);
   }
 };
 
@@ -806,5 +831,5 @@ module.exports = {
   saveQuote,
   getQuotes,
   convertQuoteToShipment,
-  getFuelSurcharge
+  getFuelSurcharge,
 };

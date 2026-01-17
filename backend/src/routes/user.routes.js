@@ -1,12 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const userController = require('../controllers/user.controller');
-const { userValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize, checkPermission } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { uploadSingle } = require('../middleware/upload.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const userController = require("../controllers/user.controller");
+const { userValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize, checkPermission } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { uploadSingle } = require("../middleware/upload.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -17,10 +17,9 @@ router.use(authenticate);
  * @access  Private (Admin, Manager)
  */
 router.get(
-  '/',
-  authorize(['admin', 'manager']),
-  userValidator.getUsers,
-  validate,
+  "/",
+  authorize(["admin", "manager"]),
+  validate(userValidator.listUsersValidation),
   userController.getUsers
 );
 
@@ -29,10 +28,7 @@ router.get(
  * @desc    Get current user's profile
  * @access  Private
  */
-router.get(
-  '/me/profile',
-  userController.getUserById
-);
+router.get("/me/profile", userController.getUserById);
 
 /**
  * @route   PUT /api/users/me/profile
@@ -40,9 +36,8 @@ router.get(
  * @access  Private
  */
 router.put(
-  '/me/profile',
-  userValidator.updateProfile,
-  validate,
+  "/me/profile",
+  validate(userValidator.updateProfileValidation),
   userController.updateProfile
 );
 
@@ -51,31 +46,21 @@ router.put(
  * @desc    Upload user avatar
  * @access  Private
  */
-router.post(
-  '/me/avatar',
-  uploadSingle('avatar'),
-  userController.uploadAvatar
-);
+router.post("/me/avatar", uploadSingle("avatar"), userController.uploadAvatar);
 
 /**
  * @route   DELETE /api/users/me/avatar
  * @desc    Delete user avatar
  * @access  Private
  */
-router.delete(
-  '/me/avatar',
-  userController.deleteAvatar
-);
+router.delete("/me/avatar", userController.deleteAvatar);
 
 /**
  * @route   GET /api/users/me/activity
  * @desc    Get current user's activity log
  * @access  Private
  */
-router.get(
-  '/me/activity',
-  userController.getUserActivity
-);
+router.get("/me/activity", userController.getUserActivity);
 
 /**
  * @route   GET /api/users/:id
@@ -83,9 +68,8 @@ router.get(
  * @access  Private (Admin, Manager, or self)
  */
 router.get(
-  '/:id',
-  userValidator.getUserById,
-  validate,
+  "/:id",
+  validate(userValidator.getUserValidation),
   userController.getUserById
 );
 
@@ -95,10 +79,9 @@ router.get(
  * @access  Private (Admin)
  */
 router.post(
-  '/',
-  authorize(['admin']),
-  userValidator.createUser,
-  validate,
+  "/",
+  authorize(["admin"]),
+  validate(userValidator.createUserValidation),
   userController.createUser
 );
 
@@ -108,10 +91,9 @@ router.post(
  * @access  Private (Admin, Manager)
  */
 router.put(
-  '/:id',
-  authorize(['admin', 'manager']),
-  userValidator.updateUser,
-  validate,
+  "/:id",
+  authorize(["admin", "manager"]),
+  validate(userValidator.updateUserValidation),
   userController.updateUser
 );
 
@@ -121,10 +103,9 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete(
-  '/:id',
-  authorize(['admin']),
-  userValidator.getUserById,
-  validate,
+  "/:id",
+  authorize(["admin"]),
+  validate(userValidator.getUserValidation),
   userController.deleteUser
 );
 
@@ -134,10 +115,9 @@ router.delete(
  * @access  Private (Admin)
  */
 router.put(
-  '/:id/status',
-  authorize(['admin']),
-  userValidator.updateStatus,
-  validate,
+  "/:id/status",
+  authorize(["admin"]),
+  validate(userValidator.updateStatusValidation),
   userController.updateStatus
 );
 
@@ -147,10 +127,9 @@ router.put(
  * @access  Private (Admin, Manager)
  */
 router.get(
-  '/:id/activity',
-  authorize(['admin', 'manager']),
-  userValidator.getUserById,
-  validate,
+  "/:id/activity",
+  authorize(["admin", "manager"]),
+  validate(userValidator.getUserValidation),
   userController.getUserActivity
 );
 
@@ -160,10 +139,9 @@ router.get(
  * @access  Private (Admin)
  */
 router.post(
-  '/bulk',
-  authorize(['admin']),
-  userValidator.bulkOperation,
-  validate,
+  "/bulk",
+  authorize(["admin"]),
+  validate(userValidator.bulkOperationValidation),
   userController.bulkOperation
 );
 

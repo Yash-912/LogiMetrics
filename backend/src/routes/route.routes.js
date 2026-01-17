@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const routeController = require('../controllers/route.controller');
-const { route: routeValidator } = require('../validators');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/rbac.middleware');
-const { validate } = require('../middleware/validation.middleware');
-const { apiLimiter } = require('../middleware/rateLimit.middleware');
+const routeController = require("../controllers/route.controller");
+const { route: routeValidator } = require("../validators");
+const { authenticate } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/rbac.middleware");
+const { validate } = require("../middleware/validation.middleware");
+const { apiLimiter } = require("../middleware/rateLimit.middleware");
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -16,10 +16,9 @@ router.use(authenticate);
  * @access  Private
  */
 router.get(
-    '/',
-    routeValidator.listRoutesValidation,
-    validate,
-    routeController.getRoutes
+  "/",
+  validate(routeValidator.listRoutesValidation),
+  routeController.getRoutes
 );
 
 /**
@@ -28,10 +27,9 @@ router.get(
  * @access  Private
  */
 router.get(
-    '/:id',
-    routeValidator.getRouteValidation,
-    validate,
-    routeController.getRouteById
+  "/:id",
+  validate(routeValidator.getRouteValidation),
+  routeController.getRouteById
 );
 
 /**
@@ -40,11 +38,10 @@ router.get(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.post(
-    '/',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.createRouteValidation,
-    validate,
-    routeController.createRoute
+  "/",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.createRouteValidation),
+  routeController.createRoute
 );
 
 /**
@@ -53,11 +50,10 @@ router.post(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-    '/:id',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.updateRouteValidation,
-    validate,
-    routeController.updateRoute
+  "/:id",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.updateRouteValidation),
+  routeController.updateRoute
 );
 
 /**
@@ -66,11 +62,10 @@ router.put(
  * @access  Private (Admin, Manager)
  */
 router.delete(
-    '/:id',
-    authorize(['admin', 'manager']),
-    routeValidator.deleteRouteValidation,
-    validate,
-    routeController.deleteRoute
+  "/:id",
+  authorize(["admin", "manager"]),
+  validate(routeValidator.deleteRouteValidation),
+  routeController.deleteRoute
 );
 
 /**
@@ -79,11 +74,10 @@ router.delete(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.patch(
-    '/:id/status',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.updateStatusValidation,
-    validate,
-    routeController.updateRouteStatus
+  "/:id/status",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.updateStatusValidation),
+  routeController.updateRouteStatus
 );
 
 /**
@@ -92,11 +86,10 @@ router.patch(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.post(
-    '/:id/waypoints',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.addWaypointValidation,
-    validate,
-    routeController.addWaypoint
+  "/:id/waypoints",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.addWaypointValidation),
+  routeController.addWaypoint
 );
 
 /**
@@ -105,11 +98,10 @@ router.post(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-    '/:id/waypoints/:waypointId',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.removeWaypointValidation,
-    validate,
-    routeController.updateWaypoint
+  "/:id/waypoints/:waypointId",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.removeWaypointValidation),
+  routeController.updateWaypoint
 );
 
 /**
@@ -118,11 +110,10 @@ router.put(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.delete(
-    '/:id/waypoints/:waypointId',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.removeWaypointValidation,
-    validate,
-    routeController.removeWaypoint
+  "/:id/waypoints/:waypointId",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.removeWaypointValidation),
+  routeController.removeWaypoint
 );
 
 /**
@@ -131,11 +122,10 @@ router.delete(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.put(
-    '/:id/waypoints/reorder',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.updateWaypointSequenceValidation,
-    validate,
-    routeController.reorderWaypoints
+  "/:id/waypoints/reorder",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.updateWaypointSequenceValidation),
+  routeController.reorderWaypoints
 );
 
 /**
@@ -144,11 +134,10 @@ router.put(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.post(
-    '/:id/optimize',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.getRouteValidation,
-    validate,
-    routeController.optimizeRouteOrder
+  "/:id/optimize",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.getRouteValidation),
+  routeController.optimizeRouteOrder
 );
 
 /**
@@ -157,11 +146,10 @@ router.post(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.post(
-    '/optimize',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.optimizeRouteValidation,
-    validate,
-    routeController.optimizeRouteOrder
+  "/optimize",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.optimizeRouteValidation),
+  routeController.optimizeRouteOrder
 );
 
 /**
@@ -170,10 +158,9 @@ router.post(
  * @access  Private
  */
 router.get(
-    '/:id/directions',
-    routeValidator.getRouteValidation,
-    validate,
-    routeController.getDirections
+  "/:id/directions",
+  validate(routeValidator.getRouteValidation),
+  routeController.getDirections
 );
 
 /**
@@ -182,11 +169,10 @@ router.get(
  * @access  Private (Admin, Manager, Dispatcher)
  */
 router.post(
-    '/:id/clone',
-    authorize(['admin', 'manager', 'dispatcher']),
-    routeValidator.getRouteValidation,
-    validate,
-    routeController.cloneRoute
+  "/:id/clone",
+  authorize(["admin", "manager", "dispatcher"]),
+  validate(routeValidator.getRouteValidation),
+  routeController.cloneRoute
 );
 
 module.exports = router;

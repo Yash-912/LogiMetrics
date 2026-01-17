@@ -1,11 +1,15 @@
-const { validationResult } = require('express-validator');
-const { Op } = require('sequelize');
-const { Vehicle, Company, Driver, FuelLog, MaintenanceRecord } = require('../models/postgres');
-const { VehicleTelemetry, AuditLog } = require('../models/mongodb');
-const { success, error, paginated } = require('../utils/response.util');
-const { AppError } = require('../middleware/error.middleware');
-const { uploadToS3 } = require('../utils/fileUpload.util');
-const logger = require('../utils/logger.util');
+const { validationResult } = require("express-validator");
+const { Op } = require("sequelize");
+const { Vehicle, Company, Driver } = require("../models/mongodb");
+const { VehicleTelemetry, AuditLog } = require("../models/mongodb");
+const {
+  successResponse,
+  errorResponse,
+  paginated,
+} = require("../utils/response.util");
+const { AppError } = require("../middleware/error.middleware");
+const { uploadToS3 } = require("../utils/fileUpload.util");
+const logger = require("../utils/logger.util");
 
 /**
  * Get all vehicles with pagination and filters
@@ -20,8 +24,8 @@ const getVehicles = async (req, res, next) => {
       type,
       companyId,
       search,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortBy = "createdAt",
+      sortOrder = "desc",
     } = req.query;
 
     const offset = (page - 1) * limit;
@@ -35,30 +39,34 @@ const getVehicles = async (req, res, next) => {
         { licensePlate: { [Op.iLike]: `%${search}%` } },
         { make: { [Op.iLike]: `%${search}%` } },
         { model: { [Op.iLike]: `%${search}%` } },
-        { vin: { [Op.iLike]: `%${search}%` } }
+        { vin: { [Op.iLike]: `%${search}%` } },
       ];
     }
 
     // Filter by user's company if not admin
-    if (req.user.role !== 'admin' && req.user.companyId) {
+    if (req.user.role !== "admin" && req.user.companyId) {
       where.companyId = req.user.companyId;
     }
 
     const { count, rows: vehicles } = await Vehicle.findAndCountAll({
       where,
       include: [
-        { model: Company, as: 'company', attributes: ['id', 'name'] },
-        { model: Driver, as: 'currentDriver', attributes: ['id', 'firstName', 'lastName', 'phone'] }
+        { model: Company, as: "company", attributes: ["id", "name"] },
+        {
+          model: Driver,
+          as: "currentDriver",
+          attributes: ["id", "firstName", "lastName", "phone"],
+        },
       ],
       order: [[sortBy, sortOrder.toUpperCase()]],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
     });
 
-    return paginated(res, 'Vehicles retrieved successfully', vehicles, {
+    return paginated(res, "Vehicles retrieved successfully", vehicles, {
       page: parseInt(page),
       limit: parseInt(limit),
-      total: count
+      total: count,
     });
   } catch (err) {
     next(err);
@@ -75,22 +83,23 @@ const getVehicleById = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id, {
       include: [
-        { model: Company, as: 'company' },
-        { model: Driver, as: 'currentDriver' }
-      ]
+        { model: Company, as: "company" },
+        { model: Driver, as: "currentDriver" },
+      ],
     });
 
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     // Get recent telemetry data
-    const telemetry = await VehicleTelemetry.findOne({ vehicleId: id })
-      .sort({ createdAt: -1 });
+    const telemetry = await VehicleTelemetry.findOne({ vehicleId: id }).sort({
+      createdAt: -1,
+    });
 
-    return success(res, 'Vehicle retrieved successfully', 200, { 
+    return successResponse(res, "Vehicle retrieved successfully", 200, {
       vehicle,
-      telemetry 
+      telemetry,
     });
   } catch (err) {
     next(err);
@@ -105,7 +114,7 @@ const createVehicle = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const {
@@ -125,20 +134,20 @@ const createVehicle = async (req, res, next) => {
       insuranceExpiry,
       registrationExpiry,
       features,
-      specifications
+      specifications,
     } = req.body;
 
     // Check if vehicle with same license plate exists
     const existingPlate = await Vehicle.findOne({ where: { licensePlate } });
     if (existingPlate) {
-      throw new AppError('Vehicle with this license plate already exists', 409);
+      throw new AppError("Vehicle with this license plate already exists", 409);
     }
 
     // Check if vehicle with same VIN exists
     if (vin) {
       const existingVin = await Vehicle.findOne({ where: { vin } });
       if (existingVin) {
-        throw new AppError('Vehicle with this VIN already exists', 409);
+        throw new AppError("Vehicle with this VIN already exists", 409);
       }
     }
 
@@ -151,8 +160,8 @@ const createVehicle = async (req, res, next) => {
       type,
       color,
       capacity,
-      capacityUnit: capacityUnit || 'kg',
-      fuelType: fuelType || 'diesel',
+      capacityUnit: capacityUnit || "kg",
+      fuelType: fuelType || "diesel",
       fuelCapacity,
       mileage: mileage || 0,
       insuranceNumber,
@@ -161,23 +170,27 @@ const createVehicle = async (req, res, next) => {
       features: features || [],
       specifications: specifications || {},
       companyId: req.user.companyId,
-      status: 'available'
+      status: "available",
     });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'VEHICLE_CREATED',
-      resource: 'Vehicle',
+      action: "VEHICLE_CREATED",
+      resource: "Vehicle",
       resourceId: vehicle.id,
       details: { licensePlate: vehicle.licensePlate },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    logger.info(`Vehicle created: ${vehicle.licensePlate} by ${req.user.email}`);
+    logger.info(
+      `Vehicle created: ${vehicle.licensePlate} by ${req.user.email}`
+    );
 
-    return success(res, 'Vehicle created successfully', 201, { vehicle });
+    return successResponse(res, "Vehicle created successfully", 201, {
+      vehicle,
+    });
   } catch (err) {
     next(err);
   }
@@ -191,7 +204,7 @@ const updateVehicle = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
@@ -199,24 +212,29 @@ const updateVehicle = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     // Check license plate uniqueness
-    if (updateData.licensePlate && updateData.licensePlate !== vehicle.licensePlate) {
-      const existingPlate = await Vehicle.findOne({ 
-        where: { licensePlate: updateData.licensePlate } 
+    if (
+      updateData.licensePlate &&
+      updateData.licensePlate !== vehicle.licensePlate
+    ) {
+      const existingPlate = await Vehicle.findOne({
+        where: { licensePlate: updateData.licensePlate },
       });
       if (existingPlate) {
-        throw new AppError('License plate is already in use', 409);
+        throw new AppError("License plate is already in use", 409);
       }
     }
 
     // Check VIN uniqueness
     if (updateData.vin && updateData.vin !== vehicle.vin) {
-      const existingVin = await Vehicle.findOne({ where: { vin: updateData.vin } });
+      const existingVin = await Vehicle.findOne({
+        where: { vin: updateData.vin },
+      });
       if (existingVin) {
-        throw new AppError('VIN is already in use', 409);
+        throw new AppError("VIN is already in use", 409);
       }
     }
 
@@ -225,17 +243,21 @@ const updateVehicle = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'VEHICLE_UPDATED',
-      resource: 'Vehicle',
+      action: "VEHICLE_UPDATED",
+      resource: "Vehicle",
       resourceId: vehicle.id,
       details: { updatedFields: Object.keys(updateData) },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    logger.info(`Vehicle updated: ${vehicle.licensePlate} by ${req.user.email}`);
+    logger.info(
+      `Vehicle updated: ${vehicle.licensePlate} by ${req.user.email}`
+    );
 
-    return success(res, 'Vehicle updated successfully', 200, { vehicle });
+    return successResponse(res, "Vehicle updated successfully", 200, {
+      vehicle,
+    });
   } catch (err) {
     next(err);
   }
@@ -251,33 +273,33 @@ const deleteVehicle = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     // Check if vehicle is currently in use
-    if (vehicle.status === 'in_use') {
-      throw new AppError('Cannot delete vehicle that is currently in use', 400);
+    if (vehicle.status === "in_use") {
+      throw new AppError("Cannot delete vehicle that is currently in use", 400);
     }
 
     const licensePlate = vehicle.licensePlate;
 
     // Soft delete
-    await vehicle.update({ status: 'inactive', deletedAt: new Date() });
+    await vehicle.update({ status: "inactive", deletedAt: new Date() });
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'VEHICLE_DELETED',
-      resource: 'Vehicle',
+      action: "VEHICLE_DELETED",
+      resource: "Vehicle",
       resourceId: id,
       details: { licensePlate },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     logger.info(`Vehicle deleted: ${licensePlate} by ${req.user.email}`);
 
-    return success(res, 'Vehicle deleted successfully', 200);
+    return successResponse(res, "Vehicle deleted successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -291,7 +313,7 @@ const updateVehicleStatus = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
@@ -299,7 +321,7 @@ const updateVehicleStatus = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const previousStatus = vehicle.status;
@@ -308,17 +330,19 @@ const updateVehicleStatus = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'VEHICLE_STATUS_CHANGED',
-      resource: 'Vehicle',
+      action: "VEHICLE_STATUS_CHANGED",
+      resource: "Vehicle",
       resourceId: id,
       details: { previousStatus, newStatus: status, reason },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     logger.info(`Vehicle ${vehicle.licensePlate} status changed to ${status}`);
 
-    return success(res, 'Vehicle status updated successfully', 200, { status });
+    return successResponse(res, "Vehicle status updated successfully", 200, {
+      status,
+    });
   } catch (err) {
     next(err);
   }
@@ -332,7 +356,7 @@ const assignDriver = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
@@ -340,20 +364,20 @@ const assignDriver = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const driver = await Driver.findByPk(driverId);
     if (!driver) {
-      throw new AppError('Driver not found', 404);
+      throw new AppError("Driver not found", 404);
     }
 
     // Check if driver is already assigned to another vehicle
     const existingAssignment = await Vehicle.findOne({
-      where: { currentDriverId: driverId, id: { [Op.ne]: id } }
+      where: { currentDriverId: driverId, id: { [Op.ne]: id } },
     });
     if (existingAssignment) {
-      throw new AppError('Driver is already assigned to another vehicle', 400);
+      throw new AppError("Driver is already assigned to another vehicle", 400);
     }
 
     await vehicle.update({ currentDriverId: driverId });
@@ -361,21 +385,31 @@ const assignDriver = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DRIVER_ASSIGNED_TO_VEHICLE',
-      resource: 'Vehicle',
+      action: "DRIVER_ASSIGNED_TO_VEHICLE",
+      resource: "Vehicle",
       resourceId: id,
-      details: { driverId, driverName: `${driver.firstName} ${driver.lastName}` },
+      details: {
+        driverId,
+        driverName: `${driver.firstName} ${driver.lastName}`,
+      },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    logger.info(`Driver ${driver.firstName} assigned to vehicle ${vehicle.licensePlate}`);
+    logger.info(
+      `Driver ${driver.firstName} assigned to vehicle ${vehicle.licensePlate}`
+    );
 
-    return success(res, 'Driver assigned to vehicle successfully', 200, { 
-      vehicle: await Vehicle.findByPk(id, {
-        include: [{ model: Driver, as: 'currentDriver' }]
-      })
-    });
+    return successResponse(
+      res,
+      "Driver assigned to vehicle successfully",
+      200,
+      {
+        vehicle: await Vehicle.findByPk(id, {
+          include: [{ model: Driver, as: "currentDriver" }],
+        }),
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -391,11 +425,14 @@ const unassignDriver = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     if (!vehicle.currentDriverId) {
-      throw new AppError('No driver is currently assigned to this vehicle', 400);
+      throw new AppError(
+        "No driver is currently assigned to this vehicle",
+        400
+      );
     }
 
     const previousDriverId = vehicle.currentDriverId;
@@ -404,15 +441,19 @@ const unassignDriver = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'DRIVER_UNASSIGNED_FROM_VEHICLE',
-      resource: 'Vehicle',
+      action: "DRIVER_UNASSIGNED_FROM_VEHICLE",
+      resource: "Vehicle",
       resourceId: id,
       details: { previousDriverId },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Driver unassigned from vehicle successfully', 200);
+    return successResponse(
+      res,
+      "Driver unassigned from vehicle successfully",
+      200
+    );
   } catch (err) {
     next(err);
   }
@@ -429,7 +470,7 @@ const getMaintenanceRecords = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const offset = (page - 1) * limit;
@@ -440,16 +481,21 @@ const getMaintenanceRecords = async (req, res, next) => {
 
     const { count, rows: records } = await MaintenanceRecord.findAndCountAll({
       where,
-      order: [['scheduledDate', 'DESC']],
+      order: [["scheduledDate", "DESC"]],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
     });
 
-    return paginated(res, 'Maintenance records retrieved successfully', records, {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total: count
-    });
+    return paginated(
+      res,
+      "Maintenance records retrieved successfully",
+      records,
+      {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -463,7 +509,7 @@ const addMaintenanceRecord = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
@@ -477,12 +523,12 @@ const addMaintenanceRecord = async (req, res, next) => {
       notes,
       mileageAtService,
       nextServiceMileage,
-      nextServiceDate
+      nextServiceDate,
     } = req.body;
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const record = await MaintenanceRecord.create({
@@ -497,29 +543,38 @@ const addMaintenanceRecord = async (req, res, next) => {
       mileageAtService,
       nextServiceMileage,
       nextServiceDate,
-      status: completedDate ? 'completed' : 'scheduled',
-      createdBy: req.user.id
+      status: completedDate ? "completed" : "scheduled",
+      createdBy: req.user.id,
     });
 
     // If maintenance is scheduled, update vehicle status
-    if (!completedDate && type === 'repair') {
-      await vehicle.update({ status: 'maintenance' });
+    if (!completedDate && type === "repair") {
+      await vehicle.update({ status: "maintenance" });
     }
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'MAINTENANCE_RECORD_CREATED',
-      resource: 'Vehicle',
+      action: "MAINTENANCE_RECORD_CREATED",
+      resource: "Vehicle",
       resourceId: id,
       details: { type, description },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    logger.info(`Maintenance record created for vehicle ${vehicle.licensePlate}`);
+    logger.info(
+      `Maintenance record created for vehicle ${vehicle.licensePlate}`
+    );
 
-    return success(res, 'Maintenance record created successfully', 201, { record });
+    return successResponse(
+      res,
+      "Maintenance record created successfully",
+      201,
+      {
+        record,
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -533,7 +588,7 @@ const updateMaintenanceRecord = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { id, recordId } = req.params;
@@ -541,23 +596,23 @@ const updateMaintenanceRecord = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const record = await MaintenanceRecord.findOne({
-      where: { id: recordId, vehicleId: id }
+      where: { id: recordId, vehicleId: id },
     });
 
     if (!record) {
-      throw new AppError('Maintenance record not found', 404);
+      throw new AppError("Maintenance record not found", 404);
     }
 
     // Update status if completedDate is provided
     if (updateData.completedDate && !record.completedDate) {
-      updateData.status = 'completed';
+      updateData.status = "completed";
       // Update vehicle status back to available if it was in maintenance
-      if (vehicle.status === 'maintenance') {
-        await vehicle.update({ status: 'available' });
+      if (vehicle.status === "maintenance") {
+        await vehicle.update({ status: "available" });
       }
     }
 
@@ -566,15 +621,22 @@ const updateMaintenanceRecord = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'MAINTENANCE_RECORD_UPDATED',
-      resource: 'Vehicle',
+      action: "MAINTENANCE_RECORD_UPDATED",
+      resource: "Vehicle",
       resourceId: id,
       details: { recordId, updatedFields: Object.keys(updateData) },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Maintenance record updated successfully', 200, { record });
+    return successResponse(
+      res,
+      "Maintenance record updated successfully",
+      200,
+      {
+        record,
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -591,7 +653,7 @@ const getFuelLogs = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const offset = (page - 1) * limit;
@@ -599,33 +661,33 @@ const getFuelLogs = async (req, res, next) => {
 
     if (startDate && endDate) {
       where.date = {
-        [Op.between]: [new Date(startDate), new Date(endDate)]
+        [Op.between]: [new Date(startDate), new Date(endDate)],
       };
     }
 
     const { count, rows: logs } = await FuelLog.findAndCountAll({
       where,
-      order: [['date', 'DESC']],
+      order: [["date", "DESC"]],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
     });
 
     // Calculate summary statistics
     const summary = await FuelLog.findAll({
       where: { vehicleId: id },
       attributes: [
-        [sequelize.fn('SUM', sequelize.col('quantity')), 'totalFuel'],
-        [sequelize.fn('SUM', sequelize.col('cost')), 'totalCost'],
-        [sequelize.fn('AVG', sequelize.col('pricePerUnit')), 'avgPrice']
+        [sequelize.fn("SUM", sequelize.col("quantity")), "totalFuel"],
+        [sequelize.fn("SUM", sequelize.col("cost")), "totalCost"],
+        [sequelize.fn("AVG", sequelize.col("pricePerUnit")), "avgPrice"],
       ],
-      raw: true
+      raw: true,
     });
 
-    return paginated(res, 'Fuel logs retrieved successfully', logs, {
+    return paginated(res, "Fuel logs retrieved successfully", logs, {
       page: parseInt(page),
       limit: parseInt(limit),
       total: count,
-      summary: summary[0]
+      summary: summary[0],
     });
   } catch (err) {
     next(err);
@@ -640,7 +702,7 @@ const addFuelLog = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { id } = req.params;
@@ -654,12 +716,12 @@ const addFuelLog = async (req, res, next) => {
       station,
       location,
       notes,
-      receiptNumber
+      receiptNumber,
     } = req.body;
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const log = await FuelLog.create({
@@ -668,14 +730,14 @@ const addFuelLog = async (req, res, next) => {
       date: date || new Date(),
       quantity,
       pricePerUnit,
-      totalCost: totalCost || (quantity * pricePerUnit),
+      totalCost: totalCost || quantity * pricePerUnit,
       fuelType: fuelType || vehicle.fuelType,
       mileage,
       station,
       location,
       notes,
       receiptNumber,
-      createdBy: req.user.id
+      createdBy: req.user.id,
     });
 
     // Update vehicle mileage if provided
@@ -686,17 +748,17 @@ const addFuelLog = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'FUEL_LOG_CREATED',
-      resource: 'Vehicle',
+      action: "FUEL_LOG_CREATED",
+      resource: "Vehicle",
       resourceId: id,
       details: { quantity, totalCost: log.totalCost },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
     logger.info(`Fuel log created for vehicle ${vehicle.licensePlate}`);
 
-    return success(res, 'Fuel log created successfully', 201, { log });
+    return successResponse(res, "Fuel log created successfully", 201, { log });
   } catch (err) {
     next(err);
   }
@@ -713,14 +775,14 @@ const getTelemetry = async (req, res, next) => {
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const query = { vehicleId: id };
     if (startDate && endDate) {
       query.createdAt = {
         $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $lte: new Date(endDate),
       };
     }
 
@@ -728,7 +790,14 @@ const getTelemetry = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
-    return success(res, 'Vehicle telemetry retrieved successfully', 200, { telemetry });
+    return successResponse(
+      res,
+      "Vehicle telemetry retrieved successfully",
+      200,
+      {
+        telemetry,
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -744,12 +813,12 @@ const uploadDocuments = async (req, res, next) => {
     const { documentType } = req.body;
 
     if (!req.file) {
-      throw new AppError('No file uploaded', 400);
+      throw new AppError("No file uploaded", 400);
     }
 
     const vehicle = await Vehicle.findByPk(id);
     if (!vehicle) {
-      throw new AppError('Vehicle not found', 404);
+      throw new AppError("Vehicle not found", 404);
     }
 
     const documentUrl = await uploadToS3(req.file, `vehicles/${id}/documents`);
@@ -760,7 +829,7 @@ const uploadDocuments = async (req, res, next) => {
       type: documentType,
       url: documentUrl,
       uploadedAt: new Date(),
-      uploadedBy: req.user.id
+      uploadedBy: req.user.id,
     });
 
     await vehicle.update({ documents });
@@ -768,15 +837,17 @@ const uploadDocuments = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'VEHICLE_DOCUMENT_UPLOADED',
-      resource: 'Vehicle',
+      action: "VEHICLE_DOCUMENT_UPLOADED",
+      resource: "Vehicle",
       resourceId: id,
       details: { documentType },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Document uploaded successfully', 200, { documentUrl });
+    return successResponse(res, "Document uploaded successfully", 200, {
+      documentUrl,
+    });
   } catch (err) {
     next(err);
   }
@@ -797,5 +868,5 @@ module.exports = {
   getFuelLogs,
   addFuelLog,
   getTelemetry,
-  uploadDocuments
+  uploadDocuments,
 };

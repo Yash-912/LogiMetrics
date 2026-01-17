@@ -1,14 +1,18 @@
-const { validationResult } = require('express-validator');
-const { Op } = require('sequelize');
-const { Notification, User, NotificationPreference, PushSubscription } = require('../models/postgres');
-const { AuditLog } = require('../models/mongodb');
-const { success, error, paginated } = require('../utils/response.util');
-const { AppError } = require('../middleware/error.middleware');
-const { sendEmail } = require('../config/email');
-const { sendSMS } = require('../config/sms');
-const { sendPushNotification } = require('../config/push');
-const { emitToUser } = require('../config/socket');
-const logger = require('../utils/logger.util');
+const { validationResult } = require("express-validator");
+const { Op } = require("sequelize");
+const { User } = require("../models/mongodb");
+const { AuditLog } = require("../models/mongodb");
+const {
+  successResponse,
+  errorResponse,
+  paginated,
+} = require("../utils/response.util");
+const { AppError } = require("../middleware/error.middleware");
+const { sendEmail } = require("../config/email");
+const { sendSMS } = require("../config/sms");
+const { sendPushNotification } = require("../config/push");
+const { emitToUser } = require("../config/socket");
+const logger = require("../utils/logger.util");
 
 /**
  * Get all notifications for current user
@@ -21,28 +25,33 @@ const getNotifications = async (req, res, next) => {
       limit = 20,
       type,
       read,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortBy = "createdAt",
+      sortOrder = "desc",
     } = req.query;
 
     const offset = (page - 1) * limit;
     const where = { userId: req.user.id };
 
     if (type) where.type = type;
-    if (read !== undefined) where.read = read === 'true';
+    if (read !== undefined) where.read = read === "true";
 
     const { count, rows: notifications } = await Notification.findAndCountAll({
       where,
       order: [[sortBy, sortOrder.toUpperCase()]],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
     });
 
-    return paginated(res, 'Notifications retrieved successfully', notifications, {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total: count
-    });
+    return paginated(
+      res,
+      "Notifications retrieved successfully",
+      notifications,
+      {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -57,14 +66,16 @@ const getNotificationById = async (req, res, next) => {
     const { id } = req.params;
 
     const notification = await Notification.findOne({
-      where: { id, userId: req.user.id }
+      where: { id, userId: req.user.id },
     });
 
     if (!notification) {
-      throw new AppError('Notification not found', 404);
+      throw new AppError("Notification not found", 404);
     }
 
-    return success(res, 'Notification retrieved successfully', 200, { notification });
+    return successResponse(res, "Notification retrieved successfully", 200, {
+      notification,
+    });
   } catch (err) {
     next(err);
   }
@@ -77,10 +88,10 @@ const getNotificationById = async (req, res, next) => {
 const getUnreadCount = async (req, res, next) => {
   try {
     const count = await Notification.count({
-      where: { userId: req.user.id, read: false }
+      where: { userId: req.user.id, read: false },
     });
 
-    return success(res, 'Unread count retrieved', 200, { count });
+    return successResponse(res, "Unread count retrieved", 200, { count });
   } catch (err) {
     next(err);
   }
@@ -95,16 +106,16 @@ const markAsRead = async (req, res, next) => {
     const { id } = req.params;
 
     const notification = await Notification.findOne({
-      where: { id, userId: req.user.id }
+      where: { id, userId: req.user.id },
     });
 
     if (!notification) {
-      throw new AppError('Notification not found', 404);
+      throw new AppError("Notification not found", 404);
     }
 
     await notification.update({ read: true, readAt: new Date() });
 
-    return success(res, 'Notification marked as read', 200);
+    return successResponse(res, "Notification marked as read", 200);
   } catch (err) {
     next(err);
   }
@@ -121,7 +132,9 @@ const markAllAsRead = async (req, res, next) => {
       { where: { userId: req.user.id, read: false } }
     );
 
-    return success(res, 'All notifications marked as read', 200, { affectedCount });
+    return successResponse(res, "All notifications marked as read", 200, {
+      affectedCount,
+    });
   } catch (err) {
     next(err);
   }
@@ -136,16 +149,16 @@ const deleteNotification = async (req, res, next) => {
     const { id } = req.params;
 
     const notification = await Notification.findOne({
-      where: { id, userId: req.user.id }
+      where: { id, userId: req.user.id },
     });
 
     if (!notification) {
-      throw new AppError('Notification not found', 404);
+      throw new AppError("Notification not found", 404);
     }
 
     await notification.destroy();
 
-    return success(res, 'Notification deleted successfully', 200);
+    return successResponse(res, "Notification deleted successfully", 200);
   } catch (err) {
     next(err);
   }
@@ -160,14 +173,16 @@ const deleteAllNotifications = async (req, res, next) => {
     const { olderThan } = req.query;
 
     const where = { userId: req.user.id };
-    
+
     if (olderThan) {
       where.createdAt = { [Op.lt]: new Date(olderThan) };
     }
 
     const affectedCount = await Notification.destroy({ where });
 
-    return success(res, 'Notifications deleted successfully', 200, { affectedCount });
+    return successResponse(res, "Notifications deleted successfully", 200, {
+      affectedCount,
+    });
   } catch (err) {
     next(err);
   }
@@ -180,7 +195,7 @@ const deleteAllNotifications = async (req, res, next) => {
 const getPreferences = async (req, res, next) => {
   try {
     let preferences = await NotificationPreference.findOne({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id },
     });
 
     // Create default preferences if not exists
@@ -191,24 +206,26 @@ const getPreferences = async (req, res, next) => {
           shipmentUpdates: true,
           paymentUpdates: true,
           promotions: false,
-          newsletter: false
+          newsletter: false,
         },
         push: {
           shipmentUpdates: true,
           paymentUpdates: true,
-          alerts: true
+          alerts: true,
         },
         sms: {
           shipmentUpdates: false,
-          alerts: true
+          alerts: true,
         },
         inApp: {
-          all: true
-        }
+          all: true,
+        },
       });
     }
 
-    return success(res, 'Notification preferences retrieved', 200, { preferences });
+    return successResponse(res, "Notification preferences retrieved", 200, {
+      preferences,
+    });
   } catch (err) {
     next(err);
   }
@@ -222,13 +239,13 @@ const updatePreferences = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { email, push, sms, inApp, quietHours } = req.body;
 
     let preferences = await NotificationPreference.findOne({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id },
     });
 
     if (!preferences) {
@@ -238,7 +255,7 @@ const updatePreferences = async (req, res, next) => {
         push: push || {},
         sms: sms || {},
         inApp: inApp || {},
-        quietHours: quietHours || null
+        quietHours: quietHours || null,
       });
     } else {
       await preferences.update({
@@ -246,21 +263,24 @@ const updatePreferences = async (req, res, next) => {
         push: push || preferences.push,
         sms: sms || preferences.sms,
         inApp: inApp || preferences.inApp,
-        quietHours: quietHours !== undefined ? quietHours : preferences.quietHours
+        quietHours:
+          quietHours !== undefined ? quietHours : preferences.quietHours,
       });
     }
 
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'NOTIFICATION_PREFERENCES_UPDATED',
-      resource: 'NotificationPreference',
+      action: "NOTIFICATION_PREFERENCES_UPDATED",
+      resource: "NotificationPreference",
       resourceId: preferences.id,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Notification preferences updated', 200, { preferences });
+    return successResponse(res, "Notification preferences updated", 200, {
+      preferences,
+    });
   } catch (err) {
     next(err);
   }
@@ -274,14 +294,14 @@ const subscribePush = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
     const { endpoint, keys, deviceType, deviceName } = req.body;
 
     // Check if subscription already exists
     let subscription = await PushSubscription.findOne({
-      where: { userId: req.user.id, endpoint }
+      where: { userId: req.user.id, endpoint },
     });
 
     if (subscription) {
@@ -293,14 +313,14 @@ const subscribePush = async (req, res, next) => {
         keys,
         deviceType,
         deviceName,
-        active: true
+        active: true,
       });
     }
 
     logger.info(`Push subscription registered for user ${req.user.id}`);
 
-    return success(res, 'Push subscription registered', 200, { 
-      subscriptionId: subscription.id 
+    return successResponse(res, "Push subscription registered", 200, {
+      subscriptionId: subscription.id,
     });
   } catch (err) {
     next(err);
@@ -316,14 +336,14 @@ const unsubscribePush = async (req, res, next) => {
     const { endpoint } = req.body;
 
     const subscription = await PushSubscription.findOne({
-      where: { userId: req.user.id, endpoint }
+      where: { userId: req.user.id, endpoint },
     });
 
     if (subscription) {
       await subscription.update({ active: false });
     }
 
-    return success(res, 'Push subscription removed', 200);
+    return successResponse(res, "Push subscription removed", 200);
   } catch (err) {
     next(err);
   }
@@ -337,24 +357,16 @@ const sendNotification = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
-    const {
-      userId,
-      userIds,
-      type,
-      title,
-      message,
-      data,
-      channels,
-      priority
-    } = req.body;
+    const { userId, userIds, type, title, message, data, channels, priority } =
+      req.body;
 
     const targetUserIds = userIds || [userId];
     const results = {
       sent: [],
-      failed: []
+      failed: [],
     };
 
     for (const targetUserId of targetUserIds) {
@@ -365,14 +377,17 @@ const sendNotification = async (req, res, next) => {
           title,
           message,
           data,
-          channels: channels || ['inApp'],
-          priority: priority || 'normal',
-          senderId: req.user.id
+          channels: channels || ["inApp"],
+          priority: priority || "normal",
+          senderId: req.user.id,
         });
 
         results.sent.push(targetUserId);
       } catch (sendErr) {
-        logger.error(`Failed to send notification to user ${targetUserId}:`, sendErr);
+        logger.error(
+          `Failed to send notification to user ${targetUserId}:`,
+          sendErr
+        );
         results.failed.push({ userId: targetUserId, error: sendErr.message });
       }
     }
@@ -380,14 +395,14 @@ const sendNotification = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'NOTIFICATION_SENT',
-      resource: 'Notification',
+      action: "NOTIFICATION_SENT",
+      resource: "Notification",
       details: { targetUserIds, type, sentCount: results.sent.length },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Notification sent', 200, { results });
+    return successResponse(res, "Notification sent", 200, { results });
   } catch (err) {
     next(err);
   }
@@ -401,18 +416,11 @@ const sendBulkNotification = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return error(res, 'Validation failed', 400, errors.array());
+      return error(res, "Validation failed", 400, errors.array());
     }
 
-    const {
-      companyId,
-      roleId,
-      type,
-      title,
-      message,
-      data,
-      channels
-    } = req.body;
+    const { companyId, roleId, type, title, message, data, channels } =
+      req.body;
 
     // Get target users
     const where = {};
@@ -421,36 +429,36 @@ const sendBulkNotification = async (req, res, next) => {
 
     const users = await User.findAll({
       where,
-      attributes: ['id'],
-      raw: true
+      attributes: ["id"],
+      raw: true,
     });
 
-    const userIds = users.map(u => u.id);
+    const userIds = users.map((u) => u.id);
 
     // Queue notifications for async processing
     // In production, this should use a job queue like Bull
     const results = {
       queued: userIds.length,
-      failed: 0
+      failed: 0,
     };
 
     // Process in batches
     const batchSize = 100;
     for (let i = 0; i < userIds.length; i += batchSize) {
       const batch = userIds.slice(i, i + batchSize);
-      
+
       await Promise.all(
-        batch.map(userId =>
+        batch.map((userId) =>
           createAndSendNotification({
             userId,
             type,
             title,
             message,
             data,
-            channels: channels || ['inApp'],
-            priority: 'normal',
-            senderId: req.user.id
-          }).catch(err => {
+            channels: channels || ["inApp"],
+            priority: "normal",
+            senderId: req.user.id,
+          }).catch((err) => {
             results.failed++;
             logger.error(`Bulk notification failed for user ${userId}:`, err);
           })
@@ -461,14 +469,14 @@ const sendBulkNotification = async (req, res, next) => {
     // Log audit event
     await AuditLog.create({
       userId: req.user.id,
-      action: 'BULK_NOTIFICATION_SENT',
-      resource: 'Notification',
+      action: "BULK_NOTIFICATION_SENT",
+      resource: "Notification",
       details: { targetCount: userIds.length, type },
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get("User-Agent"),
     });
 
-    return success(res, 'Bulk notification sent', 200, { results });
+    return successResponse(res, "Bulk notification sent", 200, { results });
   } catch (err) {
     next(err);
   }
@@ -482,10 +490,12 @@ const getPushSubscriptions = async (req, res, next) => {
   try {
     const subscriptions = await PushSubscription.findAll({
       where: { userId: req.user.id, active: true },
-      attributes: ['id', 'deviceType', 'deviceName', 'createdAt']
+      attributes: ["id", "deviceType", "deviceName", "createdAt"],
     });
 
-    return success(res, 'Push subscriptions retrieved', 200, { subscriptions });
+    return successResponse(res, "Push subscriptions retrieved", 200, {
+      subscriptions,
+    });
   } catch (err) {
     next(err);
   }
@@ -502,11 +512,11 @@ const createAndSendNotification = async ({
   data,
   channels,
   priority,
-  senderId
+  senderId,
 }) => {
   // Get user preferences
   const preferences = await NotificationPreference.findOne({
-    where: { userId }
+    where: { userId },
   });
 
   // Check quiet hours
@@ -514,16 +524,16 @@ const createAndSendNotification = async ({
     const now = new Date();
     const currentHour = now.getHours();
     const { start, end } = preferences.quietHours;
-    
-    if (priority !== 'high') {
+
+    if (priority !== "high") {
       if (start < end) {
         if (currentHour >= start && currentHour < end) {
           // In quiet hours - store only in-app
-          channels = ['inApp'];
+          channels = ["inApp"];
         }
       } else {
         if (currentHour >= start || currentHour < end) {
-          channels = ['inApp'];
+          channels = ["inApp"];
         }
       }
     }
@@ -538,31 +548,31 @@ const createAndSendNotification = async ({
     data,
     priority,
     read: false,
-    createdBy: senderId
+    createdBy: senderId,
   });
 
   // Emit via WebSocket for real-time
-  if (channels.includes('inApp')) {
-    emitToUser(userId, 'notification', {
+  if (channels.includes("inApp")) {
+    emitToUser(userId, "notification", {
       id: notification.id,
       type,
       title,
       message,
       data,
-      createdAt: notification.createdAt
+      createdAt: notification.createdAt,
     });
   }
 
   // Send email notification
-  if (channels.includes('email') && preferences?.email?.[type] !== false) {
+  if (channels.includes("email") && preferences?.email?.[type] !== false) {
     const user = await User.findByPk(userId);
     if (user?.email) {
       try {
         await sendEmail({
           to: user.email,
           subject: title,
-          template: 'notification',
-          context: { title, message, data }
+          template: "notification",
+          context: { title, message, data },
         });
       } catch (emailErr) {
         logger.error(`Failed to send email notification:`, emailErr);
@@ -571,13 +581,13 @@ const createAndSendNotification = async ({
   }
 
   // Send SMS notification
-  if (channels.includes('sms') && preferences?.sms?.[type] !== false) {
+  if (channels.includes("sms") && preferences?.sms?.[type] !== false) {
     const user = await User.findByPk(userId);
     if (user?.phone) {
       try {
         await sendSMS({
           to: user.phone,
-          message: `${title}: ${message}`
+          message: `${title}: ${message}`,
         });
       } catch (smsErr) {
         logger.error(`Failed to send SMS notification:`, smsErr);
@@ -586,9 +596,9 @@ const createAndSendNotification = async ({
   }
 
   // Send push notification
-  if (channels.includes('push') && preferences?.push?.[type] !== false) {
+  if (channels.includes("push") && preferences?.push?.[type] !== false) {
     const subscriptions = await PushSubscription.findAll({
-      where: { userId, active: true }
+      where: { userId, active: true },
     });
 
     for (const subscription of subscriptions) {
@@ -597,8 +607,8 @@ const createAndSendNotification = async ({
           title,
           body: message,
           data,
-          icon: '/icon.png',
-          badge: '/badge.png'
+          icon: "/icon.png",
+          badge: "/badge.png",
         });
       } catch (pushErr) {
         logger.error(`Failed to send push notification:`, pushErr);
@@ -631,5 +641,5 @@ module.exports = {
   sendNotification,
   sendBulkNotification,
   getPushSubscriptions,
-  createAndSendNotification
+  createAndSendNotification,
 };
