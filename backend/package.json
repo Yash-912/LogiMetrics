@@ -28,6 +28,8 @@
   "author": "LogiMetrics Team",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^1.37.0",
+    "@google/generative-ai": "^0.24.1",
     "@sendgrid/mail": "^8.1.0",
     "aws-sdk": "^2.1517.0",
     "axios": "^1.13.2",
@@ -49,6 +51,7 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3",
+    "openai": "^6.16.0",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
     "razorpay": "^2.9.2",
