@@ -33,6 +33,7 @@ import AuditLogsPage from '@/pages/AuditLogsPage';
 import LocationManagementPage from '@/pages/LocationManagementPage';
 import TransactionsPage from '@/pages/TransactionsPage';
 import AccidentHeatmap from '@/pages/AccidentHeatmap';
+import DriverMonitoringPage from '@/pages/DriverMonitoringPage';
 
 // Role-Based Dashboard Router
 const RoleBasedDashboard = ({ onLogout }) => {
@@ -328,6 +329,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <AccidentHeatmap />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver-monitoring"
+          element={
+            <ProtectedRoute>
+              <DriverMonitoringPage />
             </ProtectedRoute>
           }
         />
